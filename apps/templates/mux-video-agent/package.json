@@ -1,0 +1,31 @@
+{
+  "name": "mux-video-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @mux/eve-video build && eve build",
+    "dev": "eve dev --host 127.0.0.1 --port 2000",
+    "eval": "eve eval summarization --max-concurrency 1 --verbose",
+    "eval:list": "eve eval --list",
+    "eval:models": "node evals/run-model-matrix.mjs",
+    "start": "eve start",
+    "test": "pnpm --filter @mux/eve-video test",
+    "typecheck": "pnpm --filter @mux/eve-video typecheck && tsc --noEmit",
+    "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm eval:list"
+  },
+  "dependencies": {
+    "@mux/eve-video": "workspace:*",
+    "ai": "^7.0.58",
+    "eve": "0.46.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.18.2"
+}

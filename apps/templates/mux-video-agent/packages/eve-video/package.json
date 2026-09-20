@@ -1,0 +1,49 @@
+{
+  "name": "@mux/eve-video",
+  "version": "0.1.0",
+  "description": "Reusable Mux Video and Mux Robots capabilities for Eve agents",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "default": "./dist/tools/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "eve extension build",
+    "prepare": "eve extension build",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "eve": "0.46.1",
+    "tsx": "^4.23.0",
+    "typescript": "~5.9.3"
+  },
+  "peerDependencies": {
+    "eve": "*"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "eve": {
+    "extension": {
+      "source": "./extension",
+      "dist": "./dist/extension"
+    }
+  }
+}

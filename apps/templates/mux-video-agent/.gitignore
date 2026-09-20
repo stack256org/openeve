@@ -1,0 +1,33 @@
+# Dependencies and package-manager state
+node_modules/
+.pnpm-store/
+
+# Local credentials and environment overrides
+.env*
+!.env.example
+
+# Eve runtime and generated state
+.eve/
+.output/
+.workflow-data/
+
+# Vercel and build output
+.vercel/
+dist/
+coverage/
+
+# TypeScript caches
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating-system and editor noise
+.DS_Store
+.idea/
+*.swp
+*.swo
