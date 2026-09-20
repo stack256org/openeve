@@ -27,9 +27,28 @@ Each station is its own agent with its own instructions, sandbox, and tools. The
 - **Red CI on a factory PR.** Foreman diagnoses the failure and pushes a fix to its own branches, never yours.
 - **Someone opens a pull request.** Foreman posts one orienting comment for reviewers: a summary, not a review.
 
+## Requirements
+
+Each station runs its work in a [microsandbox](https://www.npmjs.com/package/microsandbox) VM on the machine running the factory. That backend is not an arbitrary choice: it is one of only two that implement a domain-level firewall with credential brokering, which is what keeps `GITHUB_TOKEN` outside the sandbox. The token is attached to requests on their way out to `github.com`, so a station can clone, fetch, and push, but code running inside it never sees the secret. Docker's sandbox backend supports only `allow-all` and `deny-all` and cannot express this.
+
+The trade is a narrower set of hosts than Node alone would need:
+
+| Host                                             | Supported                                                  |
+| ------------------------------------------------ | ---------------------------------------------------------- |
+| macOS on Apple Silicon                           | Yes                                                        |
+| Linux (glibc) with KVM                           | Yes — needs `/dev/kvm`, or `MSB_PATH` for a custom runtime |
+| Linux without KVM                                | No                                                         |
+| Alpine and other musl-based Linux                | No                                                         |
+| macOS on Intel, Windows                          | No                                                         |
+| Serverless platforms (Vercel, Lambda, Cloud Run) | No — none of them expose KVM                               |
+
+On an unsupported host the process still starts; the first turn that needs a sandbox fails with the reason named, for example `The microsandbox sandbox backend supports Linux with KVM or macOS on Apple Silicon. Current host is linux/x64.` If you must run where microsandbox cannot, move to a host that supports it or switch the four `sandbox.ts` files to `vercel()` from `eve/sandbox/vercel`. Do not switch them to `docker()` and pass the token in through an authenticated remote URL, a credential helper, or `env`: any of those puts the secret where `echo $GITHUB_TOKEN` inside a station reveals it, which is the whole thing this design prevents.
+
+Two practical notes. Each sandbox is sized at 4 vCPUs and 4 GiB in `agent/lib/github/repo-sandbox.ts`, and the root plus three stations can be live at once, so lower those numbers on a smaller machine. And the `microsandbox` npm package installs with the rest of the dependencies, but its VM runtime is separate: `pnpm dev` installs it the first time, while a production process installs nothing and fails with the command to run instead.
+
 ## Deploy
 
-Every integration reads a plain environment variable, so the factory runs on any host with Node 24. Register a GitHub App for the factory, install it on `FACTORY_REPO` with write access to contents, issues, and pull requests, and point its webhook at `<your-agent-url>/eve/v1/github`. Point a Linear webhook at `<your-agent-url>/eve/v1/linear`. Then fill in `.env` from `.env.example` and build with `eve build`.
+Every integration reads a plain environment variable, so the factory runs on any host that meets the requirements above. Register a GitHub App for the factory, install it on `FACTORY_REPO` with write access to contents, issues, and pull requests, and point its webhook at `<your-agent-url>/eve/v1/github`. Point a Linear webhook at `<your-agent-url>/eve/v1/linear`. Then fill in `.env` from `.env.example` and build with `eve build`.
 
 Two things must line up before the first build can finish. `FACTORY_REPO` must name a real repository in `owner/repo` format, and `GITHUB_TOKEN` must reach it. The build clones `FACTORY_REPO` up front to prewarm the station sandboxes, so a repository the token cannot reach fails with a `Cannot access <owner/repo>` error; fix the access (or the value), then build again.
 
@@ -56,6 +75,8 @@ Fill in the environment and start the TUI:
 cp .env.example .env
 pnpm dev
 ```
+
+The first `pnpm dev` on a new machine also installs the microsandbox VM runtime, so it takes noticeably longer than later runs.
 
 Hand the agent a task ("users report the password reset email arrives twice, fix it") and watch the four stations fire in order, ending in a draft PR on `FACTORY_REPO`. Local runs are treated as untrusted, so changes to GitHub wait for your approval in the TUI.
 

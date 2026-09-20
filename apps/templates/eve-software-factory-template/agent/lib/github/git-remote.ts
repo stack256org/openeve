@@ -57,6 +57,15 @@ export function validateBranch(branch: string): string | null {
  * The token never enters the sandbox process; the firewall injects the header
  * on the way out. `"*": []` keeps general egress open so package installs and
  * test runs keep working while the policy is active.
+ *
+ * On the microsandbox backend the credential reaches git inside the sandbox
+ * only as an opaque placeholder, through an `http.<url>.extraheader` config
+ * the backend sets for the brokered domains; the VM firewall substitutes the
+ * real value on egress. Reading the environment inside the sandbox therefore
+ * yields the placeholder, never the token. Applying a policy there restarts
+ * the VM from a snapshot, so keep each brokered window around the git command
+ * that needs it and no wider: both the cost and the exposure scale with how
+ * long the policy stays on.
  */
 export function brokerPolicy(token: string): SandboxNetworkPolicy {
   const authorization = `Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;

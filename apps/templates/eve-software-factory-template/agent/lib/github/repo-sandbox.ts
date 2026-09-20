@@ -1,5 +1,5 @@
 import type { SandboxBootstrapContext, SandboxSession, SandboxSessionContext } from "eve/sandbox";
-import type { VercelSandboxCreateOptions } from "eve/sandbox/vercel";
+import type { MicrosandboxSandboxCreateOptions } from "eve/sandbox/microsandbox";
 import { FACTORY_REPO } from "../constants.js";
 import {
   appAccessMessage,
@@ -11,16 +11,18 @@ import { FALLBACK_BOT_NAME, resolveBotName } from "./bot-name.js";
 import { githubToken } from "./credentials.js";
 import { brokerPolicy, REMOTE_URL } from "./git-remote.js";
 
-// Snapshot settings shared by every factory sandbox. One kept snapshot keeps
-// storage flat across template rebuilds; the 14-day expiration (Vercel removes
-// unresumable sandboxes after 14 days anyway) stops a quiet stretch from
-// expiring the template and making the next session queue behind a full
-// clone-and-setup rebuild.
+// Sizing shared by every factory sandbox. microsandbox defaults to 1 vCPU and
+// 1 GiB of memory, which a clone, a dependency install, and the repository's
+// own test suite all overrun; these are the resources a station actually
+// needs. Every sandbox is a local VM that reserves this memory from the host
+// while it runs, so raising these numbers is paid in host RAM, not a bill.
+// Snapshot retention is not an authored knob on this backend the way
+// `keepLastSnapshots` and `snapshotExpiration` were on Vercel Sandbox: eve
+// prunes stale microsandbox templates and their snapshots itself.
 export const FACTORY_SANDBOX_CREATE_OPTIONS = {
-  keepLastSnapshots: { count: 1, deleteEvicted: true },
-  resources: { vcpus: 4 },
-  snapshotExpiration: 14 * 24 * 60 * 60 * 1000,
-} satisfies VercelSandboxCreateOptions;
+  cpus: 4,
+  memoryMiB: 4096,
+} satisfies MicrosandboxSandboxCreateOptions;
 
 /**
  * Runs a command in the sandbox and throws on a nonzero exit, so a broken

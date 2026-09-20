@@ -1,26 +1,31 @@
 import { defineSandbox, type SandboxSessionContext } from "eve/sandbox";
-import { vercel } from "eve/sandbox/vercel";
+import { microsandbox } from "eve/sandbox/microsandbox";
 import { FACTORY_SANDBOX_CREATE_OPTIONS } from "./lib/github/repo-sandbox.js";
 
 /**
  * Root agent sandbox configuration.
  *
  * @remarks
- * Pins the hosted Vercel Sandbox backend for both local development and production, so the
- * same environment runs everywhere. Running locally requires the project to be linked and
- * authenticated to Vercel.
+ * Pins the microsandbox backend for both local development and production, so the same
+ * environment runs everywhere and every sandbox stays on the host running the factory.
+ * microsandbox is the only local backend that implements domain-level network policies and
+ * credential brokering, which is what keeps `GITHUB_TOKEN` out of the sandbox; the Docker
+ * backend accepts only `allow-all` and `deny-all` and would throw here. The price is a
+ * narrower host requirement — macOS on Apple Silicon, or Linux (glibc) with KVM — documented
+ * in the README.
  *
  * The `onSession` hook marks `/workspace` as a safe git directory before the GitHub channel's
- * built-in per-turn checkout runs there. The sandbox filesystem is owned by the builder uid,
- * not the session user, so without this git aborts every command with "detected dubious
- * ownership in repository at '/workspace'", the channel swallows the failed checkout, and the
- * turn runs with no working tree. The station sandboxes handle the same hazard for
- * `/workspace/repo` in `agent/lib/github/repo-sandbox.ts`.
+ * built-in per-turn checkout runs there. Whenever the directory ends up owned by a different
+ * uid than the session user, git aborts every command with "detected dubious ownership in
+ * repository at '/workspace'", the channel swallows the failed checkout, and the turn runs
+ * with no working tree; the guard costs one command and removes the whole failure mode. The
+ * station sandboxes handle the same hazard for `/workspace/repo` in
+ * `agent/lib/github/repo-sandbox.ts`.
  *
- * @see {@link https://vercel.com/docs/sandbox | Vercel Sandbox}
+ * @see {@link https://eve.dev/docs/sandbox | eve sandbox backends}
  */
 export default defineSandbox({
-  backend: vercel(FACTORY_SANDBOX_CREATE_OPTIONS),
+  backend: microsandbox(FACTORY_SANDBOX_CREATE_OPTIONS),
   async onSession({ use }: SandboxSessionContext): Promise<void> {
     const sandbox = await use();
     const result = await sandbox.run({

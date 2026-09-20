@@ -25,6 +25,7 @@
     "@github-tools/eve-extension": "^0.3.2",
     "ai": "^7.0.70",
     "eve": "^0.39.3",
+    "microsandbox": "^0.5.10",
     "zod": "4.4.3"
   },
   "devDependencies": {
