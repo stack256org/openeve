@@ -8,7 +8,7 @@ import {
   type ChatSdkInstrumentationMetadata,
   type ChatSdkReceiveTarget,
 } from "#public/channels/chat-sdk/index.js";
-import { createMemoryState } from "#compiled/@chat-adapter/state-memory/index.js";
+import { sqliteState } from "#public/channels/chat-sdk/state/sqlite.js";
 import type { Channel } from "#public/definitions/channel.js";
 import {
   createLinqAdapter,
@@ -100,7 +100,7 @@ export function linqChannel(config: LinqChannelConfig): LinqChannel {
     concurrency: "concurrent",
     events: config.events,
     routes: { linq: config.route ?? "/eve/v1/linq" },
-    state: createMemoryState(),
+    state: sqliteState(),
     streaming: false,
     turnPolicy: config.turnPolicy,
     userName: config.userName ?? "eve",

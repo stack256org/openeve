@@ -22,9 +22,6 @@ vi.mock("#public/channels/chat-sdk/index.js", () => ({
   }),
   messageToUserContent: (message: Message) => message.text,
 }));
-vi.mock("#compiled/@chat-adapter/state-memory/index.js", () => ({
-  createMemoryState: vi.fn(),
-}));
 vi.mock("#compiled/@linqapp/chat-sdk-adapter/index.js", () => ({
   createLinqAdapter,
 }));

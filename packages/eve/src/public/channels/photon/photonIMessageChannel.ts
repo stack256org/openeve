@@ -7,7 +7,7 @@ import {
   type ChatSdkChannelEvents,
 } from "#public/channels/chat-sdk/index.js";
 import type { Message, Thread } from "#compiled/chat/index.js";
-import { createMemoryState } from "#compiled/@chat-adapter/state-memory/index.js";
+import { sqliteState } from "#public/channels/chat-sdk/state/sqlite.js";
 import {
   createiMessageAdapter,
   type iMessageAdapter,
@@ -90,7 +90,7 @@ export function photonIMessageChannel(config: PhotonIMessageChannelConfig): Phot
     concurrency: "concurrent",
     events: config.events,
     routes: { imessage: config.route ?? "/eve/v1/photon" },
-    state: createMemoryState(),
+    state: sqliteState(),
     streaming: false,
     turnPolicy: config.turnPolicy,
     userName: config.userName ?? "eve",

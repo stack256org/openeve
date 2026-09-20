@@ -52,8 +52,11 @@ export function openSqliteStore(input: { readonly appRoot: string }): SqliteStor
   const directory = resolveDataDirectory(input.appRoot);
   mkdirSync(directory, { recursive: true });
   const db = new DatabaseSync(join(directory, "openeve.db"));
-  db.exec("PRAGMA journal_mode = WAL");
+  // Before WAL: switching journal mode takes an exclusive lock, so a second
+  // process opening the same database concurrently fails with SQLITE_BUSY
+  // unless this connection is already willing to wait for it.
   db.exec("PRAGMA busy_timeout = 5000");
+  db.exec("PRAGMA journal_mode = WAL");
   for (const statement of SCHEMA) db.exec(statement);
   return {
     db,
