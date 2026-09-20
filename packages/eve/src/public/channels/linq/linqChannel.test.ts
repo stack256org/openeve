@@ -43,8 +43,11 @@ describe("linqChannel", () => {
     if (handler === undefined) throw new Error("Expected an inbound direct-message handler.");
     const thread = { id: "thread-id" };
     const message = new Message({
-      author: { isBot: false, isMe: false, userId: "user", userName: "user" },
+      attachments: [],
+      author: { fullName: "user", isBot: false, isMe: false, userId: "user", userName: "user" },
+      formatted: { children: [], type: "root" },
       id: "message-id",
+      metadata: { dateSent: new Date(0), edited: false },
       raw: {},
       text: "Hello Linq",
       threadId: thread.id,
@@ -94,8 +97,11 @@ describe("linqChannel", () => {
     if (handler === undefined) throw new Error("Expected an inbound direct-message handler.");
     const thread = { id: "thread-id" };
     const message = new Message({
-      author: { isBot: false, isMe: false, userId: "user", userName: "user" },
+      attachments: [],
+      author: { fullName: "user", isBot: false, isMe: false, userId: "user", userName: "user" },
+      formatted: { children: [], type: "root" },
       id: "message-id",
+      metadata: { dateSent: new Date(0), edited: false },
       raw: {},
       text: "  \n",
       threadId: thread.id,

@@ -37,7 +37,13 @@ export default {
         build: buildOpaqueTypesStub,
       },
     },
+    // Every content-hashed sibling chunk, not one chunk by name. chat splits
+    // its declarations across several of them and the split changes between
+    // releases: 4.34.0 emits `messages-<hash>.d.ts` alongside
+    // `jsx-runtime-<hash>.d.ts`. Missing one leaves an unresolved relative
+    // import that `skipLibCheck` swallows, which silently degrades every type
+    // re-exported through it to `any`.
     discoverExtraFiles: (distEntries) =>
-      distEntries.filter((name) => /^jsx-runtime-[^./]+\.d\.ts$/.test(name)),
+      distEntries.filter((name) => /^[^.]+-[A-Za-z0-9_-]{8}\.d\.ts$/.test(name)),
   }),
 };

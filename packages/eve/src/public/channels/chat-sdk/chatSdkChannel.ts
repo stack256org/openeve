@@ -94,6 +94,9 @@ export interface ChatSdkChannelState extends Record<string, unknown> {
  * Chat SDK thread when possible; `threadId` plus `adapterName` is supported for
  * proactive sends that only have a provider-native thread id.
  */
+/** A thread as Chat SDK events hand it over. eve forwards it and never reads its state, so the state parameter stays `unknown`. */
+type ChatSdkThread = Thread<unknown, unknown>;
+
 export interface ChatSdkReceiveTarget {
   readonly adapterName?: string;
   readonly thread?: SerializedThread;
@@ -144,7 +147,7 @@ export interface ChatSdkSendOptions {
   readonly auth?: SessionAuthContext | null;
   readonly callback?: ChannelAddressDeliveryOptions<ChatSdkChannelState>["callback"];
   readonly mode?: ChannelAddressDeliveryOptions<ChatSdkChannelState>["mode"];
-  readonly thread: SerializedThread | Thread | string;
+  readonly thread: SerializedThread | ChatSdkThread | string;
   readonly title?: string;
   /**
    * Controls how this input interacts with an active eve turn on the same
@@ -627,7 +630,7 @@ function serializeReceiveTarget<TAdapters extends ChatSdkAdapters>(
 
 function serializeThread<TAdapters extends ChatSdkAdapters>(
   bot: Chat<TAdapters>,
-  thread: SerializedThread | Thread | string,
+  thread: SerializedThread | ChatSdkThread | string,
   adapterName?: string,
 ): SerializedThread {
   if (typeof thread === "string") {
@@ -646,7 +649,7 @@ function serializeThread<TAdapters extends ChatSdkAdapters>(
   return thread.toJSON();
 }
 
-function isSerializedThread(value: SerializedThread | Thread): value is SerializedThread {
+function isSerializedThread(value: SerializedThread | ChatSdkThread): value is SerializedThread {
   return "_type" in value && value._type === "chat:Thread";
 }
 

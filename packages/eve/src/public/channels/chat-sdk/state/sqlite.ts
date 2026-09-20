@@ -1,10 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import { openSqliteStore, type SqliteStore } from "#internal/storage/sqlite-store.js";
-// chat's vendored `index.d.ts` re-exports from a dist chunk the vendor
-// pipeline does not copy, so these names degrade to `any` under
-// `skipLibCheck` and supply no contextual parameter types. Every method below
-// is therefore annotated by hand against chat's published signatures.
 import type { Lock, QueueEntry, StateAdapter } from "#compiled/chat/index.js";
 
 /** Location of the shared database backing {@link sqliteState}. */

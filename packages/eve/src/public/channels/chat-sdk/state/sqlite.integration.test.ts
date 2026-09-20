@@ -15,6 +15,7 @@ function entry(text: string, expiresAt = Date.now() + 60_000): QueueEntry {
       // so a serializing adapter only ever sees messages carrying both.
       attachments: [],
       author: { fullName: "Alice", isBot: false, isMe: false, userId: "alice", userName: "alice" },
+      formatted: { children: [], type: "root" },
       id: text,
       metadata: { dateSent: new Date("2026-01-01T00:00:00.000Z"), edited: false },
       raw: {},
