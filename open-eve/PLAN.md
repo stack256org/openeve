@@ -21,6 +21,8 @@
 - **Unit tier forbids filesystem writes.** `src/internal/testing/unit-guard.ts` replaces every `node:fs` write, `child_process` spawn, `process.chdir`, and real `fetch` with throwing stubs. Anything touching disk or network belongs in `*.integration.test.ts` or `*.scenario.test.ts`.
 - **Run a single test with its tier config**, or `#*` imports resolve to stale `dist`:
   `pnpm --filter eve exec vitest run --config vitest.unit.config.ts <path>`
+- **Integration-tier runs need `dist/` first on a fresh checkout.** Loading `vitest.integration.config.ts` itself imports through the `default` condition into `./dist/src/...`, so run `pnpm --filter eve run build:js` before any `--config vitest.integration.config.ts` command. The package's own `test:integration` script does exactly this.
+- **Run `oxfmt` on new files before committing.** The literal code in this plan is not always wrapped to the repo's line width.
 - **Style:** name definitions for the protocol they target; derive names from file paths; comment why, not what; no legacy fallback logic (pre-1.0 favours breaking changes).
 - **Every commit** uses `git commit -s` for the DCO trailer.
 - **Gate checks before any commit:** `pnpm guard:invariants` and `node ./scripts/check-docs.mjs` must both pass.
