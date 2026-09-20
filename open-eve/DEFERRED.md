@@ -99,6 +99,39 @@ probably never.
 
 ---
 
+## 5. One template still needs Vercel Sandbox
+
+**Which one.** `eve-software-factory-template`. Every other template runs with
+nothing hosted.
+
+**What it would do.** This template checks code out of GitHub and runs it. To
+do that safely it gives the sandbox a way to reach github.com _without ever
+handing it the GitHub token_: the firewall attaches the credential on the way
+out, so code running inside can use the connection but can never read the
+secret.
+
+**Why it is not built.** The local Docker sandbox cannot do that. It is not a
+missing option, it is a refusal — eve's own Docker backend stops with this
+message:
+
+> The local Docker sandbox backend supports only the "allow-all" and
+> "deny-all" network policies. Domain-level allow-lists and credential
+> brokering require the Vercel backend (vercel()) or microsandbox().
+
+Every way of making Docker work here puts the GitHub token inside the sandbox,
+where the model can simply print it. That is a real reduction in safety, not a
+paperwork difference, so it was not done.
+
+**Does it matter to you?** Only if you use this one template. The other eleven
+have no hosted dependency.
+
+**When.** There is a way forward: `microsandbox()` runs locally, costs nothing,
+and does support credential brokering. It needs macOS on Apple Silicon, or
+Linux with KVM. That is a different piece of work with different risks, so it
+is a separate task rather than a quick swap.
+
+---
+
 ## Things that sound missing but are not
 
 | You might expect                | Reality                                                                     |

@@ -20,8 +20,8 @@
     "validate": "pnpm run check && pnpm run typecheck && eve info"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.58",
-    "@ai-sdk/openai": "^4.0.8",
+    "@ai-sdk/anthropic": "4.0.41",
+    "@ai-sdk/openai": "4.0.45",
     "@github-tools/eve-extension": "^0.3.2",
     "ai": "^7.0.70",
     "eve": "^0.39.3",
