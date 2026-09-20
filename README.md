@@ -1,21 +1,52 @@
-<div align="center">
-  <a href="https://eve.dev/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset=".github/assets/eve.svg">
-      <img alt="eve logo" src=".github/assets/eve.svg" height="128">
-    </picture>
-  </a>
-  <h1>eve</h1>
+# open-eve
 
-<a href="https://vercel.com"><img alt="Vercel logo" src="https://img.shields.io/badge/MADE%20BY%20Vercel-000000.svg?style=for-the-badge&logo=Vercel&labelColor=000"></a>
-<a href="https://www.npmjs.com/package/eve"><img alt="NPM version" src="https://img.shields.io/npm/v/eve.svg?style=for-the-badge&labelColor=000000"></a>
-<a href="https://github.com/vercel/eve/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/npm/l/eve.svg?style=for-the-badge&labelColor=000000"></a>
-<a href="https://github.com/vercel/eve/discussions"><img alt="Join the community on GitHub" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Github&labelColor=000000&logoWidth=20"></a>
+open-eve is a fork of [eve](https://github.com/vercel/eve), Vercel's filesystem-first
+framework for durable backend AI agents. It runs the same agents with no Vercel
+service in the path: every default is local, so `eve build && eve start` on a bare
+virtual private server (VPS) reaches no third party except the model provider you chose.
 
-</div>
+Vercel is not removed. It is opt-in, one field in `agent/agent.ts`.
 
-[eve](https://eve.dev/) is a filesystem-first framework for durable AI agents. Core agent capabilities live in
-conventional locations, so projects are easier to inspect, extend, and operate.
+## What differs from eve
+
+| Layer             | eve on Vercel         | open-eve default                                 |
+| ----------------- | --------------------- | ------------------------------------------------ |
+| Host              | Vercel                | `self`; `host: vercel()` opts back in            |
+| Durable execution | Vercel Workflow       | Local Workflow world under `.eve/.workflow-data` |
+| File memory       | Vercel Blob           | SQLite in `data/openeve.db`                      |
+| Channel state     | Vercel-managed        | SQLite in `data/openeve.db`                      |
+| Sandbox           | Vercel Sandbox        | Docker, then microsandbox, then just-bash        |
+| Model             | AI Gateway model slug | Any AI SDK provider, including a local endpoint  |
+| Build output      | `.vercel/output`      | A Nitro Node server under `.output/`             |
+| Channel auth      | Vercel Connect        | Credentials you set in the environment           |
+
+Two pages cover most of the practical difference:
+
+- [Local models](docs/guides/local-models.md) — Ollama, vLLM, LiteLLM, and direct providers
+- [Self-host eve](docs/guides/deployment/self-hosting.md) — what a VPS needs and what it stores
+
+Everything else in eve is unchanged, including the nine first-class channels, tools,
+skills, subagents, schedules, and the terminal UI.
+
+## What has not changed
+
+Some things a reader might expect from the name are deliberately still as upstream
+left them:
+
+- **The package is still named `eve`.** Imports are still `eve`, `eve/tools`, and so on.
+  The package name is also the import specifier, so renaming it would rewrite roughly
+  1,600 import sites and make every upstream merge conflict on them. Install open-eve
+  from this repository; `npm install eve` installs upstream eve.
+- **The CLI answers to both `eve` and `openeve`.** They are the same binary.
+- **`eve add` still resolves `https://eve.dev/r`.** No open-eve registry is hosted yet.
+  Override it with `EVE_DEV_OFFICIAL_REGISTRY_URL`, or point at your own with
+  `eve registry add`.
+- **`eve-software-factory-template` still requires Vercel Sandbox.** It needs
+  credential brokering into the sandbox, which the Docker backend refuses to do. The
+  other eleven templates run with nothing hosted.
+
+[`open-eve/DEFERRED.md`](open-eve/DEFERRED.md) is the full list of what is not built yet
+and why.
 
 ## The filesystem is the authoring interface
 
@@ -36,29 +67,34 @@ my-agent/
         └── weekly_recap.ts
 ```
 
-Read the [documentation](https://eve.dev/docs) for the full project layout and guides.
+The [`docs/`](docs) directory is the full project layout and guides. eve's hosted
+documentation at [eve.dev/docs](https://eve.dev/docs) describes upstream, so where the two
+disagree, this repository's copy is the one that matches this code.
 
 ## Quick start
 
-```bash
-npx eve@latest init my-agent
-```
-
-This creates a new `my-agent` directory, installs its dependencies, initializes Git, and starts
-the interactive terminal UI.
-
-To start with another AI Gateway model, pass its model ID:
+open-eve is not published to npm, so build it from a clone:
 
 ```bash
-npx eve@latest init my-agent --model openai/gpt-5.6-terra
+git clone https://github.com/stack256org/openeve.git
+cd openeve
+pnpm install
+pnpm build
 ```
 
-To add eve to an existing project, pass a path:
+Then scaffold an agent with the CLI you just built:
 
 ```bash
-cd myapp
-npx eve@latest init .
+node packages/eve/bin/eve.js init my-agent
 ```
+
+That creates a new `my-agent` directory, installs its dependencies, initializes Git, and
+starts the interactive terminal UI. Passing a path instead of a name adds eve to an
+existing project.
+
+`init` writes an AI Gateway model ID into `agent/agent.ts`, which routes through Vercel.
+Replace it with a provider object to keep model calls on infrastructure you control — see
+[Local models](docs/guides/local-models.md).
 
 > [!NOTE]
 > The `eve` package includes its full documentation, so coding agents can read it locally from
@@ -87,15 +123,27 @@ export default defineTool({
 });
 ```
 
-Choose the model in `agent/agent.ts`:
+Choose the model in `agent/agent.ts`. Against a model server on the same machine, that
+is an AI SDK provider pointed at its address:
 
 ```ts
+import { createOpenAI } from "@ai-sdk/openai";
 import { defineAgent } from "eve";
 
+const ollama = createOpenAI({
+  apiKey: "ollama",
+  baseURL: "http://127.0.0.1:11434/v1",
+  name: "ollama",
+});
+
 export default defineAgent({
-  model: "openai/gpt-5.6-luna-fast",
+  model: ollama.chat("qwen3:8b"),
+  modelContextWindowTokens: 32_768,
 });
 ```
+
+Each of those three extra fields matters, and one of them breaks `eve build`
+rather than a request. [Local models](docs/guides/local-models.md) explains why.
 
 For a new scaffold, start the agent again:
 
@@ -104,21 +152,25 @@ npm run dev
 ```
 
 That's a working agent. Add human-in-the-loop prompts, subagents, and schedules as needed.
-Follow the [first-agent tutorial](https://eve.dev/docs/tutorial/first-agent) for a complete
+Follow the [first-agent tutorial](docs/tutorial/first-agent.mdx) for a complete
 walkthrough.
 
 ## Community
 
-The eve community lives on [GitHub Discussions](https://github.com/vercel/eve/discussions),
-where you can ask questions, share ideas, and show what you've built.
+open-eve's issues and discussions are on
+[this repository](https://github.com/stack256org/openeve). Questions about eve itself
+belong upstream, in [eve's discussions](https://github.com/vercel/eve/discussions).
 
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) to get the repo
-running locally and land a change, and use
-[issues](https://github.com/vercel/eve/issues) and
-[discussions](https://github.com/vercel/eve/discussions) to collaborate. By
-participating, you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
+running locally and land a change. By participating, you agree to our
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+Changes that are not about removing the Vercel dependency belong upstream in
+[vercel/eve](https://github.com/vercel/eve), so everyone gets them. This fork merges
+upstream releases rather than diverging from them, which is why it renames no files and
+edits upstream ones a line at a time.
 
 ## Security
 

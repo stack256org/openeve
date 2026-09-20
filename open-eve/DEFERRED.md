@@ -43,9 +43,16 @@ exactly the same behaviour you have today. It is tidying, not a fix.
 **Does it matter to you?** No. Traces work now. `openeve traces` and
 `openeve traces ls` behave exactly as before.
 
-**One small consequence.** When you move open-eve to a new server, you copy the
-`data/` folder. Trace history lives in `.eve/traces/` instead, so it does not
-come along. Most people do not want old traces on a new server anyway.
+**One thing to know.** Those traces are recorded while you work on the agent
+locally with `openeve dev`. A deployed server does not record them, and does
+not send them anywhere either — you point it at a trace collector you run, or
+it reports nothing. That is a deliberate default: no telemetry leaves the
+machine unless you ask for it.
+
+**One small consequence.** When you move open-eve to a new server you copy the
+`data/` folder and the `.eve/.workflow-data` folder. Trace history lives in
+`.eve/traces/` instead, so it does not come along. Most people do not want old
+traces on a new server anyway.
 
 **When.** No date. It will only happen if listing traces becomes slow enough to
 be annoying.
@@ -77,25 +84,33 @@ running on your own machine, spot a running Ollama automatically, and write the
 right lines into your agent for you.
 
 **Why it is not built.** Because you do not need it. Using a local model
-already works, it is just three lines you write yourself:
+already works, and it is a handful of lines you write yourself:
 
 ```ts
 import { createOpenAI } from "@ai-sdk/openai";
 
-const local = createOpenAI({ apiKey: "ollama", baseURL: "http://127.0.0.1:11434/v1" });
+const ollama = createOpenAI({
+  apiKey: "ollama",
+  baseURL: "http://127.0.0.1:11434/v1",
+  name: "ollama",
+});
 
-export default defineAgent({ model: local("qwen3:8b") });
+export default defineAgent({
+  model: ollama.chat("qwen3:8b"),
+  modelContextWindowTokens: 32_768,
+});
 ```
 
 Change the address and you have LiteLLM, vLLM, or any other server that speaks
 the OpenAI format. The wizard would have saved you typing that, at the cost of
 extra code inside open-eve that has to be kept working. Not a good trade.
 
-**Does it matter to you?** No. Local models work. You write three lines instead
-of answering three questions.
+**Does it matter to you?** No, but read the page before you start. There are
+three details in that snippet that each fail differently if you leave them out,
+and one of them stops the build rather than the request. All three are written
+up in [Local models](../docs/guides/local-models.md).
 
-**When.** The documentation page showing this comes next. The wizard itself,
-probably never.
+**When.** The documentation is written. The wizard itself, probably never.
 
 ---
 
@@ -132,6 +147,105 @@ is a separate task rather than a quick swap.
 
 ---
 
+## 6. The package is still called `eve`
+
+**What it would do.** Publishing open-eve to npm under its own name, so you
+could install it the ordinary way.
+
+**Why it is not built.** In JavaScript, a package's name is also the word you
+type when you import it. Renaming `eve` to `open-eve` would mean editing about
+1,600 lines across the project that all say `eve`. Every one of those lines
+would then differ from Vercel's version, and every time we pull in their
+updates, all 1,600 would have to be reconciled by hand. Keeping open-eve
+current with eve is the whole point of the fork, so that trade is not worth
+making.
+
+**Does it matter to you?** A little. You install open-eve by cloning this
+repository and building it, not with `npm install`. `npm install eve` gives
+you Vercel's version, not this one. Everything after that is the same.
+
+**When.** Only if open-eve is published to npm as its own package. That is a
+decision nobody has made yet. If it happens, the rename lands as one commit
+that changes nothing else.
+
+---
+
+## 7. The command to install add-ons still points at Vercel's catalogue
+
+**What it would do.** `openeve add` fetches ready-made pieces — extensions,
+channel setups, memory providers — from a catalogue. That catalogue is
+Vercel's, at `https://eve.dev/r`. open-eve would publish its own.
+
+**Why it is not built.** Publishing a catalogue means hosting it somewhere, and
+nowhere has been chosen. Changing the address before a replacement exists would
+swap a working default for a broken one, which is strictly worse.
+
+**Does it matter to you?** Rarely, and it is fixable in one line. The address
+is just a setting: `EVE_DEV_OFFICIAL_REGISTRY_URL` overrides it, and
+`openeve registry add` points at any catalogue you like, including your own.
+Fetching from that catalogue copies files onto your machine and nothing more.
+What happens next is up to the piece you installed — a few of them offer to set
+up a Vercel service afterwards, and you can say no.
+
+**When.** When someone decides where to host it.
+
+---
+
+## 8. `openeve link` and `openeve deploy` are still offered to everyone
+
+**What it would do.** Those two commands only do anything on Vercel. On a
+self-hosted agent they are noise in the help output.
+
+**Why it is not built.** Hiding them was the plan, then it looked like the
+wrong fix: a command that silently disappears teaches nobody why it is gone. A
+clear "this agent is not configured for Vercel" message would be better, and
+that has not been written.
+
+**Does it matter to you?** No. They still work for people who do want Vercel,
+and the promise that nothing reaches Vercel is enforced where it counts — in
+the running server — not by which commands appear in a help listing.
+
+**When.** No date. It is cosmetic.
+
+---
+
+## 9. The generated web app forgets who signed up
+
+**What it would do.** The scaffolding can generate a web chat app with a
+sign-in page. It used to sign in through Vercel; it now asks for an email
+address and a password instead. What it does not do is save those accounts
+anywhere permanent.
+
+**Why it is not built.** The login library it uses keeps accounts in memory
+when you do not give it a database. Giving it one means choosing a database,
+adding it to the generated project, and wiring up the table setup — a much
+bigger change than swapping the sign-in method was. The generated
+`lib/auth.ts` says so in a comment directly above the code, so nobody meets
+this by surprise.
+
+**What actually happens.** Accounts vanish when the server restarts, and an
+account created on one server is invisible to another. It was true of the
+Vercel version too, but it mattered less there, because Vercel remembered
+people. Now nothing does.
+
+**Does it matter to you?** Only if you use the variant with sign-in, and you
+almost certainly are not. `openeve init` does not offer it — it writes the
+plain version, which has no sign-in at all. The one with sign-in is reachable
+only from code, by passing `webAuthentication: "sign-in-with-vercel"` to
+`ensureChannel`.
+
+**A name that lies.** That setting is still called `sign-in-with-vercel`, and
+its folder is still named that, even though it no longer signs in with Vercel
+at all. The name is wrong and we left it wrong on purpose: it is part of the
+published interface, so changing it breaks other people's code, and renaming
+folders is what makes merging Vercel's updates painful. Read it as "the
+variant with a login page".
+
+**When.** Whenever someone needs the login page to survive a restart. Until
+then, add a database adapter yourself in `lib/auth.ts`.
+
+---
+
 ## Things that sound missing but are not
 
 | You might expect                | Reality                                                                     |
@@ -141,6 +255,7 @@ is a separate task rather than a quick swap.
 | "Can I still use Vercel?"       | Yes. It is a one-line setting, not a fork.                                  |
 | "Do I need a Vercel account?"   | No. Not for anything.                                                       |
 | "Is trace recording lost?"      | No. It works exactly as before.                                             |
+| "Is `openeve` a new command?"   | It is a second name for `eve`. Both run the same program.                   |
 
 ---
 

@@ -2,6 +2,7 @@
   "title": "Guides",
   "pages": [
     "deployment",
+    "local-models",
     "auth-and-route-protection",
     "instrumentation",
     "hooks",

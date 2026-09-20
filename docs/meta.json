@@ -5,6 +5,7 @@
     "concepts",
     "---Build---",
     "agent-config",
+    "guides/local-models",
     "instructions",
     "memory",
     "tools",

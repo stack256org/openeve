@@ -78,10 +78,26 @@ The document lives in a backend, not in the agent's sandbox filesystem. With no
 | Vercel with Blob credentials (token, or attached store with OIDC) | Private Vercel Blob                                                          |
 | Vercel without Blob configuration                                 | Error recommending `/add memory/file` or `eve integration setup file-memory` |
 | `eve dev`                                                         | Shared process-local in-memory storage                                       |
-| Every other environment                                           | Error asking you for an explicit backend                                     |
+| Every other environment                                           | SQLite in `data/openeve.db`                                                  |
 
 `NODE_ENV=development` alone does not select in-memory storage, and a Blob
 token outside Vercel does not select Blob.
+
+### SQLite
+
+A self-hosted deployment needs no configuration. `sqlite()` stores one row per
+document in `data/openeve.db`, the same database the Linq and Photon channels
+use for their channel state, so one directory holds everything durable.
+
+```ts
+import { fileMemory, sqlite } from "eve/memory/file";
+
+provider: fileMemory({ backend: sqlite() });
+```
+
+The database is created on first write. `EVE_DATA_DIR` moves the whole
+directory; see [Self-host eve](../guides/deployment/self-hosting#what-the-agent-stores-on-disk)
+for the layout and how to back it up.
 
 ### In-memory
 
