@@ -70,6 +70,35 @@ releases gets permanently easier. If they say no, nothing changes.
 
 ---
 
+## 4. A model picker for local models in the setup wizard
+
+**What it would do.** Have `openeve init` ask whether you want to use a model
+running on your own machine, spot a running Ollama automatically, and write the
+right lines into your agent for you.
+
+**Why it is not built.** Because you do not need it. Using a local model
+already works, it is just three lines you write yourself:
+
+```ts
+import { createOpenAI } from "@ai-sdk/openai";
+
+const local = createOpenAI({ apiKey: "ollama", baseURL: "http://127.0.0.1:11434/v1" });
+
+export default defineAgent({ model: local("qwen3:8b") });
+```
+
+Change the address and you have LiteLLM, vLLM, or any other server that speaks
+the OpenAI format. The wizard would have saved you typing that, at the cost of
+extra code inside open-eve that has to be kept working. Not a good trade.
+
+**Does it matter to you?** No. Local models work. You write three lines instead
+of answering three questions.
+
+**When.** The documentation page showing this comes next. The wizard itself,
+probably never.
+
+---
+
 ## Things that sound missing but are not
 
 | You might expect                | Reality                                                                     |

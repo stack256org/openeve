@@ -933,7 +933,7 @@ Slack is the reference implementation: on `"environment"` it returns immediately
 - [ ] **Step 5** — Make the `@vercel/connect` pin conditional; update the tests asserting the pinned string.
 - [ ] **Step 6** — `pnpm --filter eve run test:unit && pnpm --filter eve run test:integration`, gates, commit.
 
-### Task 9: `openeve init` model flow
+### Task 9: `openeve init` model flow — DROPPED
 
 **Files:**
 
@@ -949,7 +949,29 @@ const local = createOpenAI({ baseURL: "http://127.0.0.1:11434/v1", apiKey: "olla
 export default defineAgent({ model: local("qwen3:8b") });
 ```
 
-**Two traps:**
+**Dropped 2026-09-20.** This task assumed eve needed a change before a
+self-hosted model could be used. It does not.
+`PublicAgentStaticModelDefinition` is `string | LanguageModel`
+(`src/shared/agent-definition.ts:59`), so any AI SDK provider object already
+works:
+
+```ts
+import { createOpenAI } from "@ai-sdk/openai";
+
+const local = createOpenAI({ apiKey: "ollama", baseURL: "http://127.0.0.1:11434/v1" });
+
+export default defineAgent({ model: local("qwen3:8b") });
+```
+
+Ollama, LiteLLM, vLLM, and anything else OpenAI-compatible are reachable today
+with no framework code. What Task 9 would have added is an interactive picker
+in `openeve init` plus local-endpoint detection — convenience, not capability,
+and it carried the four `provider/model`-shape branches below as its cost. Not
+worth it. The remaining work is a documentation page showing the pattern above.
+
+The partial implementation was reverted rather than committed.
+
+**Two traps (no longer relevant):**
 
 - `model-login.ts:74` hardcodes `"openai/gpt-5.6-luna-fast"` instead of importing `DEFAULT_AGENT_MODEL_ID`. Both must change together.
 - The gateway `provider/model` shape is load-bearing in four places beyond the picker: `validateModelSlug` (`!slug.includes("/")` plus a catalog lookup), `modelProviderSlug`, `byokProviderEnvVar`, and `select-model.ts`'s `m.id.split("/")[0]` provider label. A provider object has no slug, so each needs an explicit branch.
