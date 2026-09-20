@@ -1,4 +1,4 @@
-import { getVercelOidcToken } from "#compiled/@vercel/oidc/index.js";
+import { readVercelOidcToken } from "#internal/host/vercel-oidc.js";
 import { readVercelProjectLink } from "#internal/vercel/project-link.js";
 import { toErrorMessage } from "#shared/errors.js";
 import { z } from "zod";
@@ -54,12 +54,12 @@ export async function resolveDevelopmentOidcToken(
   input: DevelopmentOidcTarget,
 ): Promise<DevelopmentOidcTokenResolution> {
   try {
-    const options: NonNullable<Parameters<typeof getVercelOidcToken>[0]> = {
-      team: input.ownerId,
+    const options: { expirationBufferMs?: number; project?: string; team?: string } = {
       project: input.projectId,
+      team: input.ownerId,
     };
     if (input.forceRefresh === true) options.expirationBufferMs = Number.MAX_SAFE_INTEGER;
-    const token = (await getVercelOidcToken(options)).trim();
+    const token = (await readVercelOidcToken(options)).trim();
     return validateDevelopmentOidcToken(token, input);
   } catch (error) {
     return { kind: "resolution-failed", message: toErrorMessage(error) };

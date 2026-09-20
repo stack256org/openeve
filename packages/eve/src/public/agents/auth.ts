@@ -1,4 +1,4 @@
-import { getVercelOidcToken } from "#compiled/@vercel/oidc/index.js";
+import { readVercelOidcToken } from "#internal/host/vercel-oidc.js";
 
 import { type TokenValue, VERCEL_TRUSTED_OIDC_IDP_TOKEN_HEADER } from "#client/types.js";
 
@@ -38,7 +38,7 @@ export interface VercelOidcOptions {
  */
 export function vercelOidc(options: VercelOidcOptions = {}): OutboundAuthFn {
   return async () => {
-    const token = await getVercelOidcToken(options);
+    const token = await readVercelOidcToken(options);
     return {
       headers: {
         authorization: `Bearer ${token}`,

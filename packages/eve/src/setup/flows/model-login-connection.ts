@@ -1,4 +1,4 @@
-import { getVercelOidcToken } from "#compiled/@vercel/oidc/index.js";
+import { readVercelOidcToken } from "#internal/host/vercel-oidc.js";
 import { availableDirectModels } from "#internal/model-auth/available-models.js";
 import {
   modelKeySecretName,
@@ -73,7 +73,7 @@ export async function reuseModelConnection(
       return { selected, team };
     }
     case "ai-gateway-project":
-      return (await getVercelOidcToken().catch(() => undefined)) ? { selected } : undefined;
+      return (await readVercelOidcToken().catch(() => undefined)) ? { selected } : undefined;
     case "ai-gateway-key": {
       const key = await resolveModelApiKey(selected);
       return (await validateGatewayApiKey(key, signal)).kind === "valid" ? { selected } : undefined;

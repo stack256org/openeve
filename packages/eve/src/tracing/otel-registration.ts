@@ -8,13 +8,13 @@ import {
   SpanKind,
   type Context,
 } from "#compiled/@opentelemetry/api/index.js";
-import {
-  registerOTel,
-  type Configuration,
-  type SpanProcessor,
-  type SpanProcessorOrName,
+import type {
+  Configuration,
+  SpanProcessor,
+  SpanProcessorOrName,
 } from "#compiled/@vercel/otel/index.js";
 
+import { loadRegisterOTel } from "#tracing/vercel-otel.js";
 import { AgentSpanIdGenerator } from "#tracing/agent-span-id-generator.js";
 import type { OtelPipeline } from "#tracing/otel-declaration.js";
 import {
@@ -27,7 +27,6 @@ const REPLAY_DEDUPLICATION_LIMIT = 100_000;
 const PENDING_CHILD_SPAN_LIMIT = 10_000;
 const REPLAY_DEDUPLICATION_KEY = Symbol.for("eve.otel.replay-deduplication");
 const require = createRequire(import.meta.url);
-
 interface ReplayDeduplicationGlobal {
   [REPLAY_DEDUPLICATION_KEY]?: Set<string>;
 }
@@ -171,7 +170,7 @@ export function registerOtelPipeline(input: {
     serviceName: input.serviceName,
     spanProcessors,
   };
-  registerOTel(
+  loadRegisterOTel()(
     // Absent means "let `@vercel/otel` decide", which is not the same as
     // passing an explicit `undefined` sampler.
     pipeline.sampler === undefined

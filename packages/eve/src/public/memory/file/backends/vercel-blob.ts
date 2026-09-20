@@ -1,10 +1,18 @@
-import { BlobPreconditionFailedError, get, put } from "#compiled/@vercel/blob/index.js";
 import {
   MemoryDocumentConflictError,
   type MemoryDocument,
   type MemoryDocumentBackend,
   type MemoryDocumentReadInput,
 } from "#public/memory/file/backend.js";
+
+/**
+ * Loads the vendored Vercel Blob client on first use.
+ *
+ * Every caller is already async, so keeping this off the module's import list
+ * costs nothing and is what lets a self-hosted deployment run without loading
+ * Vercel code.
+ */
+const loadBlobClient = async () => await import("#compiled/@vercel/blob/index.js");
 
 const DEFAULT_PREFIX = "eve/memory/file";
 
@@ -30,6 +38,7 @@ export function vercelBlob(options: VercelBlobBackendOptions = {}): MemoryDocume
   };
 
   const read = async (input: MemoryDocumentReadInput): Promise<MemoryDocument | null> => {
+    const { get } = await loadBlobClient();
     const result = await get(pathname(prefix, input.key), {
       ...credentials,
       abortSignal: input.signal,
@@ -47,6 +56,7 @@ export function vercelBlob(options: VercelBlobBackendOptions = {}): MemoryDocume
   return {
     read,
     async write(input) {
+      const { BlobPreconditionFailedError, put } = await loadBlobClient();
       try {
         const result = await put(pathname(prefix, input.key), input.content, {
           ...credentials,

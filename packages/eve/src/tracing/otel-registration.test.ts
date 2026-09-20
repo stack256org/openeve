@@ -4,7 +4,7 @@ import { registerOtelPipeline } from "#tracing/otel-registration.js";
 
 const { registerOTel } = vi.hoisted(() => ({ registerOTel: vi.fn() }));
 
-vi.mock("#compiled/@vercel/otel/index.js", () => ({ registerOTel }));
+vi.mock("#tracing/vercel-otel.js", () => ({ loadRegisterOTel: () => registerOTel }));
 
 describe("registerOtelPipeline", () => {
   beforeEach(() => {

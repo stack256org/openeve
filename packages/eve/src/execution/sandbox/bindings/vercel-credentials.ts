@@ -1,4 +1,4 @@
-import { getVercelOidcToken } from "#compiled/@vercel/oidc/index.js";
+import { readVercelOidcToken } from "#internal/host/vercel-oidc.js";
 import { decodeVercelOidcTokenClaims } from "#shared/vercel-project.js";
 import { withPackageUserAgent } from "#internal/user-agent.js";
 import type { VercelCreateOptions } from "#execution/sandbox/bindings/vercel-sdk-types.js";
@@ -27,7 +27,7 @@ export async function getVercelSandboxCredentials(
     return { projectId, teamId, token: envToken };
   }
 
-  const oidcToken = await getVercelOidcToken({
+  const oidcToken = await readVercelOidcToken({
     project: projectId,
     team: teamId,
   });
