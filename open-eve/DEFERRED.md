@@ -114,36 +114,39 @@ up in [Local models](../docs/guides/local-models.md).
 
 ---
 
-## 5. One template still needs Vercel Sandbox
+## 5. One template only runs on some machines
 
-**Which one.** `eve-software-factory-template`. Every other template runs with
-nothing hosted.
+**Which one.** `eve-software-factory-template`. Every other template runs
+anywhere Node does.
 
-**What it would do.** This template checks code out of GitHub and runs it. To
-do that safely it gives the sandbox a way to reach github.com _without ever
-handing it the GitHub token_: the firewall attaches the credential on the way
+**What happened.** This template checks code out of GitHub and runs it. To do
+that safely it needs a sandbox that can reach github.com _without ever handing
+the sandbox your GitHub token_: the firewall attaches the credential on the way
 out, so code running inside can use the connection but can never read the
 secret.
 
-**Why it is not built.** The local Docker sandbox cannot do that. It is not a
-missing option, it is a refusal — eve's own Docker backend stops with this
-message:
+It used to get that from Vercel Sandbox, a paid service. It now uses
+microsandbox, which runs on your own machine and costs nothing. Nothing about
+this template is hosted any more.
 
-> The local Docker sandbox backend supports only the "allow-all" and
-> "deny-all" network policies. Domain-level allow-lists and credential
-> brokering require the Vercel backend (vercel()) or microsandbox().
+**The catch.** microsandbox is the only local sandbox that can do the
+credential trick, and it only runs on macOS with Apple Silicon, or on Linux
+with KVM enabled. Not Intel Macs, not Windows, not musl Linux. On anything else
+the agent starts and the first task needing a sandbox stops with a message
+naming your machine.
 
-Every way of making Docker work here puts the GitHub token inside the sandbox,
-where the model can simply print it. That is a real reduction in safety, not a
-paperwork difference, so it was not done.
+The obvious workaround, using the ordinary Docker sandbox instead, is the one
+thing we will not do: every way of making Docker work here puts your GitHub
+token inside the sandbox, where the model can simply print it.
 
-**Does it matter to you?** Only if you use this one template. The other eleven
-have no hosted dependency.
+**Does it matter to you?** Only if you use this one template, and only if your
+machine is not one of the two supported kinds. The other eleven templates have
+no such requirement.
 
-**When.** There is a way forward: `microsandbox()` runs locally, costs nothing,
-and does support credential brokering. It needs macOS on Apple Silicon, or
-Linux with KVM. That is a different piece of work with different risks, so it
-is a separate task rather than a quick swap.
+**One other cost worth knowing.** Changing the firewall rule mid-run restarts
+the sandbox on microsandbox, where Vercel updated it in place. Your files
+survive, but each protected window costs a restart. The template already keeps
+those windows short.
 
 ---
 
