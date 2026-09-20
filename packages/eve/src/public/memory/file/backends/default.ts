@@ -2,6 +2,7 @@ import { isEveDevEnvironment } from "#internal/application/dev-environment.js";
 import type { MemoryDocumentBackend } from "#public/memory/file/backend.js";
 import { inMemory } from "#public/memory/file/backends/in-memory.js";
 import { lazyBackend } from "#public/memory/file/backends/lazy.js";
+import { sqlite } from "#public/memory/file/backends/sqlite.js";
 import { vercelBlob } from "#public/memory/file/backends/vercel-blob.js";
 
 interface VercelBlobCredentials {
@@ -44,9 +45,9 @@ function selectDefaultFileMemoryBackend(
     );
   }
   if (probes.isEveDevelopment()) return DEVELOPMENT_BACKEND;
-  throw new Error(
-    "fileMemory() requires an explicit backend outside Vercel and eve dev. Pass fileMemory({ backend }).",
-  );
+  // Self-hosted deployments need no configuration: the shared data/openeve.db
+  // travels with the rest of the agent's durable state.
+  return sqlite();
 }
 
 function hasEnvironmentValue(name: string): boolean {

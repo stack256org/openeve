@@ -64,23 +64,6 @@ describe("default file-memory backend", () => {
     );
   });
 
-  it.each([undefined, "development", "production", "staging"])(
-    "requires an explicit backend outside Vercel and eve dev with NODE_ENV=%s",
-    async (nodeEnv) => {
-      vi.stubEnv("EVE_DEV", undefined);
-      vi.stubEnv("VERCEL", undefined);
-      vi.stubEnv("NODE_ENV", nodeEnv);
-      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "outside-vercel");
-      const backend = defaultFileMemoryBackend();
-
-      await expect(async () => await backend.read({ key: "mem_a", signal })).rejects.toThrow(
-        "requires an explicit backend outside Vercel and eve dev",
-      );
-      expect(get).not.toHaveBeenCalled();
-      expect(put).not.toHaveBeenCalled();
-    },
-  );
-
   it("uses Vercel Blob with a read-write token", async () => {
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("EVE_DEV", undefined);
