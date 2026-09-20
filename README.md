@@ -108,6 +108,34 @@ follow [CONTRIBUTING.md](CONTRIBUTING.md).
 Replace it with a provider object to keep model calls on infrastructure you control — see
 [Local models](docs/guides/local-models.md).
 
+### Using the CLI
+
+Two names run the same binary: `eve` and `openeve`. Before a project exists, reach the
+CLI through `npx`; inside a project, use the copy the project installed, so the CLI and
+the runtime are the same version.
+
+```bash
+# Before a project exists
+npx @stack256org/openeve@latest init my-agent
+npx @stack256org/openeve@latest init .                        # into the current directory
+npx @stack256org/openeve@latest init my-agent --model anthropic/claude-sonnet-4.5
+
+# Inside a project
+npx eve dev            # interactive terminal UI
+npx eve build          # Nitro server under .output/
+npx eve start          # run the built server
+npx eve info           # resolved model, channels, tools, connections
+npx eve eval           # run the project's evals
+```
+
+`eve dev` needs a terminal. For a non-interactive check, run `eve build`, start the
+server, and drive the HTTP API: `POST /eve/v1/session`, then
+`POST /eve/v1/session/:id`. The generated `agent/channels/eve.ts` opens localhost for
+`eve dev` and registers HTTP Basic when `EVE_API_PASSWORD` is set, so a deployed agent
+is reachable with `Authorization: Basic base64("eve:$EVE_API_PASSWORD")`.
+
+Nothing is reported anywhere: CLI telemetry is off unless you run `eve telemetry enable`.
+
 > [!NOTE]
 > The `eve` package includes its full documentation, so coding agents can read it locally from
 > `node_modules/eve/docs`.
