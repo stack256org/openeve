@@ -131,7 +131,16 @@ A bare `provider/model` string routes through Vercel AI Gateway. This is true
 even with a BYOK provider key: the key is passed to the gateway's `byok` block,
 so the request still transits Vercel. A slug is a Vercel dependency.
 
-eve ships direct providers for two:
+**Check the `eve` version the template pins before using `eve/models/*`.**
+`eve/models/anthropic` first shipped in eve 0.57.0. At older pins,
+`eve/models/openai` exports only `chatgpt()` — a ChatGPT-subscription model
+that explicitly fails in a deployment — and not the direct `openai()`. Several
+templates pin 0.39 to 0.54. Where the pin is too old, use `@ai-sdk/anthropic`
+and `@ai-sdk/openai` directly. Do not bump the template's `eve` version to
+reach the nicer form: that drags in documented breaking changes to the
+instrumentation API and `defineWorkflowTool`.
+
+Where the pin is 0.57.0 or newer, eve ships direct providers for two:
 
 ```ts
 // before
@@ -155,11 +164,84 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 const xai = createOpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: "https://api.x.ai/v1" });
 
-export default defineAgent({ model: xai("grok-4.5") });
+export default defineAgent({ model: xai.chat("grok-4.5") });
 ```
+
+**`.chat(...)`, not the bare callable.** `createOpenAI(...)(id)` resolves to the
+Responses API — its type is `(modelId: OpenAIResponsesModelId)` — so
+`xai("grok-4.5")` POSTs to `/responses`, which OpenAI-compatible providers do
+not implement. Only native OpenAI uses `.responses(...)`, which is what eve's
+own `openai()` does.
+
+Endpoints confirmed against primary documentation:
+
+| provider      | baseURL                                                    |
+| ------------- | ---------------------------------------------------------- |
+| xAI           | `https://api.x.ai/v1`                                      |
+| Moonshot AI   | `https://api.moonshot.ai/v1`                               |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` |
 
 That adds `@ai-sdk/openai` to the template's dependencies, which is fine —
 templates are applications, not the framework.
+
+## 4b. When a service has no portable credential at all
+
+Some services cannot be ported, and inventing an environment variable for them
+is worse than removing them. `https://mcp.vercel.com` is the worked example:
+it is OAuth-only and, per Vercel's documentation, "only supports AI clients
+that have been reviewed and approved by Vercel". There is no bearer token to
+point an env var at.
+
+Delete the connection, its connector variable, and every README reference,
+and state the capability loss in your report. Do not write a `getToken` that
+reads a variable the service will never accept.
+
+## 4c. The two couplings a `@vercel/` grep does not find
+
+Both of these are eve exports rather than npm packages, so
+`grep -rn "@vercel/"` returns clean while the template still depends on Vercel.
+Check for them by name.
+
+**`vercel()` in `agent/sandbox.ts`** is Vercel Sandbox, a paid hosted service.
+Replace it with `docker({ networkPolicy: "deny-all" })` from
+`eve/sandbox/docker`, which exists as far back as eve 0.11. The new cost to the
+user is a running Docker daemon, so say so in the README.
+
+**`vercelOidc()` in `agent/channels/eve.ts`** is easy to misread as an inert
+opt-in. It is not. Off Vercel it never matches, so if it is the only production
+verifier in the list the HTTP API has no way to authenticate a real request and
+the route is unusable. Register HTTP Basic instead, and only when the password
+is actually set:
+
+```ts
+const auth: AuthFn<Request>[] = [localDev()];
+const apiPassword = process.env.EVE_API_PASSWORD;
+if (apiPassword) {
+  auth.push(httpBasic({ password: apiPassword, username: process.env.EVE_API_USERNAME ?? "eve" }));
+}
+```
+
+Do not write `httpBasic({ password: process.env.EVE_API_PASSWORD ?? "" })`.
+That accepts `Basic base64("eve:")` and fails open.
+
+Leave `vercelOidc()` alone only where another verifier already covers
+production, such as a template with its own application session.
+
+## 4d. Pin the AI SDK packages exactly
+
+`@ai-sdk/anthropic` and `@ai-sdk/openai` pin `@ai-sdk/provider` exactly, and so
+does `ai`. A caret range on the provider packages installs two copies of
+`@ai-sdk/provider`, and `tsc` then rejects the `model:` field with
+`TS2322: Type 'LanguageModelV4' is not assignable to type
+'PublicAgentStaticModelDefinition'`.
+
+For a template on `ai@7.0.70`, the newest working pair is
+`@ai-sdk/anthropic@4.0.41` and `@ai-sdk/openai@4.0.45`, which share that
+release's `@ai-sdk/provider@4.0.7`. Pin exactly, and record the constraint in
+the template's AGENTS.md so a later caret does not silently reintroduce it.
+
+Installing the template and running `pnpm typecheck` against its real pinned
+`eve` is what catches this. It is worth doing.
 
 ## 5. Analytics
 
@@ -190,5 +272,14 @@ as a hosted product.
 4. `pnpm guard:invariants` passes. Rule 13 (no spread-ternary object
    composition) has already been tripped twice by template code.
 5. `pnpm lint` reports no new warnings from files you touched.
-6. `grep -rn "@vercel/" <template>` returns nothing outside a deliberate,
-   documented exception.
+6. `grep -rn "@vercel/" <template>` returns nothing outside `pnpm-lock.yaml`.
+   Lockfile hits are expected and usually cannot be removed: `eve` declares
+   `@vercel/blob` as an optional peer and `@github-tools/sdk` declares
+   `@vercel/connect`, and pnpm's `autoInstallPeers` resolves both. What matters
+   is that the `importers:` section declares neither. Regenerating a lockfile to
+   chase the rest churns unrelated dependencies, which is the worse trade.
+7. `.env.example` is actually committed. Several templates have `.env*` in
+   `.gitignore` with no `!.env.example` negation, so a new one is silently
+   ignored. Add the negation.
+8. Grep for the two couplings in section 4c by name, since they do not contain
+   the string `@vercel/`.
