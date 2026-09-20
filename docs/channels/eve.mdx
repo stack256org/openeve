@@ -165,7 +165,7 @@ The `auth` option decides who can call `/eve/v1/info` and the session routes. Th
 
 Neither admits browser users or external clients in production. For a public app, wire the channel to your own auth (Clerk, Auth.js, your own OIDC/JWT verification, an API-key verifier, or any custom `AuthFn`). Vercel OIDC is optional; use it only when Vercel-issued deployment tokens are part of your trust model.
 
-`eve init` scaffolds an `agent/channels/eve.ts` with a production placeholder so you replace it before going live. The generated channel checks Vercel OIDC before falling back to localhost access, and includes `placeholderAuth()`, which returns a setup-focused 401 in production until you swap it for real auth. Delete the file and eve selects its default channel source with `[vercelOidc(), localDev(), placeholderAuth()]`, which rejects all production traffic.
+`eve init` scaffolds an `agent/channels/eve.ts` with a production placeholder so you replace it before going live. The generated channel accepts HTTP Basic when `EVE_API_PASSWORD` is set, falls back to localhost access, and ends with `placeholderAuth()`, which returns a setup-focused 401 in production until you swap it for real auth. It does not register `vercelOidc()`, which never matches off Vercel; add it when Vercel-issued deployment tokens are part of your trust model. Delete the file and eve selects its default channel source with `[vercelOidc(), localDev(), placeholderAuth()]`, which rejects all production traffic.
 
 For the full auth model and helper list, see [Auth & route protection](../guides/auth-and-route-protection).
 

@@ -358,7 +358,7 @@ describe("ensureChannel", () => {
       "utf8",
     );
     expect(authenticatedChatSource).toContain("auth.api.getSession");
-    expect(authenticatedChatSource).toContain("<SignIn />");
+    expect(authenticatedChatSource).toContain("<SignIn socialProvider={getPublicSocialProvider()}");
     expect(authenticatedChatSource).toContain("<AccountControl");
     await expect(readFile(join(projectRoot, "app/icon.svg"), "utf8")).resolves.toContain(
       'viewBox="0 0 102 102"',
@@ -369,10 +369,31 @@ describe("ensureChannel", () => {
 
     const authSource = await readFile(join(projectRoot, "lib/auth.ts"), "utf8");
     expect(authSource).toContain('requireEnvironmentVariable("BETTER_AUTH_SECRET")');
-    expect(authSource).toContain("process.env.VERCEL_PROJECT_PRODUCTION_URL");
-    expect(authSource).toContain('clientId: requireEnvironmentVariable("VERCEL_APP_CLIENT_ID")');
-    expect(authSource).toContain('throw new Error("No trusted deployment hosts are configured")');
+    // BETTER_AUTH_URL is the portable host source; the Vercel variables stay as
+    // extras so a Vercel deploy still needs no configuration.
+    expect(authSource).toContain("getAppUrlHost(process.env.BETTER_AUTH_URL)");
+    expect(authSource).toContain("getAppUrlHost(process.env.VERCEL_PROJECT_PRODUCTION_URL)");
+    expect(authSource).toContain("Set BETTER_AUTH_URL to this app's public URL");
+    expect(authSource).toContain("minPasswordLength: MIN_PASSWORD_LENGTH");
+    expect(authSource).not.toContain("VERCEL_APP_CLIENT_ID");
     expect(authSource).not.toContain("*.vercel.app");
+
+    const passwordPolicySource = await readFile(
+      join(projectRoot, "lib/password-policy.ts"),
+      "utf8",
+    );
+    expect(passwordPolicySource).toContain("export const MIN_PASSWORD_LENGTH = 12;");
+
+    const socialProviderSource = await readFile(
+      join(projectRoot, "lib/social-provider.ts"),
+      "utf8",
+    );
+    expect(socialProviderSource).toContain("process.env.AUTH_SOCIAL_PROVIDER");
+    expect(socialProviderSource).toContain("process.env.AUTH_SOCIAL_CLIENT_ID");
+    expect(socialProviderSource).toContain("process.env.AUTH_SOCIAL_CLIENT_SECRET");
+    expect(socialProviderSource).toContain(
+      "return { id: socialProvider.id, label: socialProvider.label };",
+    );
 
     const channelSource = await readFile(join(projectRoot, "agent/channels/eve.ts"), "utf8");
     expect(channelSource).toContain("auth.api.getSession");
@@ -381,17 +402,49 @@ describe("ensureChannel", () => {
     expect(channelSource).toContain("vercelOidc()");
     expect(channelSource).toContain("localDev()");
     expect(channelSource).not.toContain("placeholderAuth");
+    expect(channelSource).toContain("const apiPassword = process.env.EVE_API_PASSWORD;");
+    expect(channelSource).toContain("httpBasic({ password: apiPassword");
 
     const accountSource = await readFile(
       join(projectRoot, "app/_components/web-chat-auth.tsx"),
       "utf8",
     );
-    expect(accountSource).toContain("Continue with Vercel");
-    expect(accountSource).toContain('viewBox="0 0 24 20"');
+    expect(accountSource).toContain("authClient.signIn.email({ email, password })");
+    expect(accountSource).toContain("authClient.signUp.email(");
+    expect(accountSource).toContain(`Continue with \${provider.label}`);
+    expect(accountSource).toContain("Incorrect email or password.");
+    expect(accountSource).not.toContain("Continue with Vercel");
     expect(accountSource).toContain('viewBox="0 0 169 53"');
     expect(accountSource).toContain("Sign in to start a session");
     expect(accountSource).toContain("Log out");
     expect(accountSource).not.toContain("__EVE_INIT_APP_NAME__");
+  });
+
+  test("gates the default Web Chat channel's HTTP Basic on EVE_API_PASSWORD", async () => {
+    const projectRoot = await createTempDir();
+    await writeFile(
+      join(projectRoot, "package.json"),
+      `${JSON.stringify({ name: "demo", type: "module" }, null, 2)}\n`,
+      "utf8",
+    );
+
+    await ensureChannel({
+      projectRoot,
+      kind: "web",
+      webPackageVersions: TEST_WEB_PACKAGE_VERSIONS,
+    });
+
+    const channelSource = await readFile(join(projectRoot, "agent/channels/eve.ts"), "utf8");
+    // Off Vercel vercelOidc() never matches, so it cannot be the production
+    // verifier; the Basic fallback must stay behind a set password because an
+    // empty one accepts `Basic base64("eve:")`.
+    expect(channelSource).not.toContain("vercelOidc");
+    expect(channelSource).toContain("const apiPassword = process.env.EVE_API_PASSWORD;");
+    expect(channelSource).toContain("if (apiPassword) {");
+    expect(channelSource).toContain("httpBasic({ password: apiPassword");
+    expect(channelSource).not.toContain('EVE_API_PASSWORD ?? ""');
+    expect(channelSource).toContain("localDev()");
+    expect(channelSource).toContain("placeholderAuth()");
   });
 
   test("overrides an incompatible node engine when adding Web Chat", async () => {

@@ -1,5 +1,5 @@
 import { eveChannel } from "eve/channels/eve";
-import { localDev, type AuthFn, vercelOidc } from "eve/channels/auth";
+import { httpBasic, localDev, type AuthFn, vercelOidc } from "eve/channels/auth";
 import { auth } from "@/lib/auth";
 
 const betterAuthSession: AuthFn<Request> = async (request) => {
@@ -22,6 +22,19 @@ const betterAuthSession: AuthFn<Request> = async (request) => {
   };
 };
 
-export default eveChannel({
-  auth: [betterAuthSession, vercelOidc(), localDev()],
-});
+const authPolicy: AuthFn<Request>[] = [betterAuthSession];
+
+// The browser session above only covers browser callers. Set EVE_API_PASSWORD
+// to let the eve TUI, CI, and other programmatic callers in on any host.
+// Registered only when the password is set: an empty password would accept
+// `Basic base64("eve:")` from anyone.
+const apiPassword = process.env.EVE_API_PASSWORD;
+if (apiPassword) {
+  authPolicy.push(
+    httpBasic({ password: apiPassword, username: process.env.EVE_API_USERNAME ?? "eve" }),
+  );
+}
+
+authPolicy.push(vercelOidc(), localDev());
+
+export default eveChannel({ auth: authPolicy });

@@ -95,13 +95,23 @@ async function discoverSourceFiles(sourceRoot: string, relativeDirectory = ""): 
   return discoveredFiles;
 }
 
+function countOccurrences(content: string, character: string): number {
+  return content.split(character).length - 1;
+}
+
+// The formatter picks whichever quote needs fewer escapes, double on a tie.
+// Match that choice here or `oxfmt` rewrites the generated module and the
+// drift check fails on a file that was just regenerated.
 function quoteSourceFile(content: string): string {
-  return `'${content
+  const escaped = content
     .replaceAll("\\", "\\\\")
-    .replaceAll("'", "\\'")
     .replaceAll("\r", "\\r")
     .replaceAll("\n", "\\n")
-    .replaceAll("\t", "\\t")}'`;
+    .replaceAll("\t", "\\t");
+  if (countOccurrences(content, '"') > countOccurrences(content, "'")) {
+    return `'${escaped.replaceAll("'", "\\'")}'`;
+  }
+  return `"${escaped.replaceAll('"', '\\"')}"`;
 }
 
 function renderFileEntry(relativePath: string, content: string): string {
