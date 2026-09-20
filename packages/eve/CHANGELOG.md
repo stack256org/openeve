@@ -1,5 +1,32 @@
 # eve
 
+## 0.63.1
+
+### Patch Changes
+
+- 4de9299: The framework now recognizes itself when installed under an npm alias (`"eve": "npm:@stack256org/openeve@^x.y.z"`), where the manifest carries the published name but every import specifier still reads `eve`. Package-root resolution, workflow module specifiers, and authored-module detection all accept either name and keep emitting `eve`.
+- e91efe1: Fixes durable workflow execution when the framework is installed under the `eve` alias. Workflow ids were built from the installed manifest name while the bundler registered them under the import specifier, so every turn failed with `WorkflowNotRegisteredError`.
+- 223437b: `eve init` now explains how to fix an install that npm rejects with `EALLOWSCRIPTS`. npm's own message points at `package.json` and `.npmrc`, but the setting that breaks a project-scoped install is the user-level one; the CLI now names the command that removes it.
+- 178821f: The vendored `chat` type declarations resolve for the first time. Only one of chat's two content-hashed declaration chunks was being copied, so every type re-exported through the other one — `StateAdapter`, `Lock`, `QueueEntry`, `Message`, `Thread`, `Author` — silently degraded to `any`. Code touching the Chat SDK is now type-checked against the real contract.
+- 7b6a9c1: An authored `host` in `agent/agent.ts` now governs runtime behavior. The compiled manifest's host is published to the process at cold start, so the call sites that previously read `process.env.VERCEL` resolve the authored value first and fall back to the environment only when nothing was authored.
+- a896055: Agents now store file memory in a local SQLite database at `data/openeve.db`
+  instead of failing outside Vercel and `eve dev`. `fileMemory()` picks the new
+  `sqlite()` backend automatically when no backend is configured, so a
+  self-hosted deployment works with no setup. The database is opened through
+  Node's built-in `node:sqlite`, so nothing is added to your install.
+- b520fa9: The authored `host` now governs the default file-memory backend. Selecting Vercel Blob previously read `process.env.VERCEL` directly, so `host: vercel()` alone did not move memory to Blob on a machine where that variable was unset.
+- 38b377d: Vendored Vercel code no longer loads on deployments that do not use Vercel. The Vercel Blob memory client, the OIDC token reader, and the `@vercel/otel` registrar are now loaded on first use rather than at import time, and a new `check:no-vercel-runtime` build step fails the build if a runtime module imports them statically again.
+- 9c2567a: Every channel setup flow now offers portable environment-variable credentials and recommends them by default. Discord, GitHub, Linear, and Microsoft Teams gained the choice they never had, and a scaffolded project no longer pins `@vercel/connect` — it is added only when a Connect branch is actually chosen.
+- 9114ed1: Linq and Photon iMessage channels now keep their Chat SDK state — thread locks,
+  message queues, subscriptions, and cached values — in the local SQLite database
+  at `data/openeve.db` instead of in process memory, so a restart no longer drops
+  queued messages or subscriptions and two workers cannot run the same thread at
+  once.
+- 713397d: The Web Chat app that `eve init` scaffolds now starts and authenticates off Vercel. The generated channel registers HTTP Basic from `EVE_API_PASSWORD` instead of `vercelOidc()`, which never matches on a non-Vercel host, and registers it only when the password is set. The authenticated variant signs users in with email and password through Better Auth (12-character minimum, generic sign-in errors), takes an optional social provider from `AUTH_SOCIAL_PROVIDER`/`AUTH_SOCIAL_CLIENT_ID`/`AUTH_SOCIAL_CLIENT_SECRET`, and reads its public URL from `BETTER_AUTH_URL` with the `VERCEL_*` variables kept as extra sources, so it no longer throws `No trusted deployment hosts are configured` at startup outside Vercel.
+- 14a37c4: Scaffolded projects now install the framework under the published `@stack256org/openeve` name, aliased to `eve` so every `import ... from "eve/..."` keeps working unchanged. Projects created with a workspace protocol, a tarball path, or any other explicit specifier are left as-is.
+- 2df07d6: The SQLite memory backend no longer keeps a database handle open for the life of the backend. Each read and write owns its connection, so a process creating several backends no longer leaks one handle apiece, and on Windows the database file can be deleted while the process is still running.
+- 223437b: CLI telemetry is now off by default and never sends anything until you run `eve telemetry enable`. The one-time notice that explained how to opt out is gone with it, since it only printed while telemetry was on.
+
 ## 0.63.0
 
 ### Minor Changes
