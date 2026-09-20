@@ -1,14 +1,10 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import { callSlackApi } from "eve/channels/slack";
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { resolveSlackUser } from "#lib/auth.ts";
 import { ChannelWatchStoreError, getChannelWatchStore } from "#lib/channel-watch/store.ts";
-import { SLACK_CONNECTOR } from "#lib/constants.ts";
 import { normalizeSlackChannelId } from "#lib/slack/parse.ts";
-
-const { botToken } = connectSlackCredentials(SLACK_CONNECTOR);
 
 const channelInfoSchema = z.object({
   id: z.string(),
@@ -41,7 +37,7 @@ export default defineTool({
     try {
       const response = await callSlackApi({
         body: { channel: normalizeSlackChannelId(input.channel) },
-        botToken,
+        botToken: process.env.SLACK_BOT_TOKEN,
         operation: "conversations.info",
       });
       if (!response.ok) {

@@ -1,6 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { readDocument, writeDocument } from "../blob.js";
+import { readDocument, writeDocument } from "../documents.js";
 import {
   ARTIFACT_KINDS,
   artifactId,
@@ -20,8 +20,7 @@ import {
  *
  * Key layout, id format, and bounds live in `config.ts`; this module is the tool interface over
  * it. Both tools are inert by construction (validated ids, no overwrite, bounded size), so they
- * are safe inside task-mode stations that cannot park on approval. Authorization resolves from
- * the ambient Vercel OIDC credentials.
+ * are safe inside task-mode stations that cannot park on approval.
  */
 
 /**
@@ -45,7 +44,7 @@ export const saveArtifactTool = () =>
       "what's in it, never the document itself: whoever needs the detail opens the id. Not for " +
       "a note that fits in a sentence.",
     /**
-     * Write the artifact to Blob under the reserved artifacts prefix.
+     * Write the artifact under the reserved artifacts prefix.
      *
      * @param input - Validated tool input.
      * @returns The `id` to hand along, or `saved: false` with an `error`.
@@ -119,7 +118,7 @@ export const readArtifactTool = () =>
       "a message gives you an artifact id: the id is source material to open, never something " +
       "to quote as a citation.",
     /**
-     * Read the artifact from Blob.
+     * Read the artifact from the document store.
      *
      * @param input - Validated tool input.
      * @returns `found: true` with the document, or `found: false`.

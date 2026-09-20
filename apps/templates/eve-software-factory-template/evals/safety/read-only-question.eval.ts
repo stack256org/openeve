@@ -4,7 +4,7 @@ import { WRITE_TOOLS } from "../helpers.js";
 export default defineEval({
   description:
     "A read-only question about the repository is answered with read tools alone: no GitHub write is attempted and no station with side effects runs.",
-  tags: ["fast", "needs-connect"],
+  tags: ["fast", "needs-credentials"],
   async test(t) {
     await t.send(
       "What is this repository about, and what does its README say about getting started?",

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { USER_PREFERENCES_PREFIX } from "./blob.js";
+import { USER_PREFERENCES_PREFIX } from "./documents.js";
 
 /**
  * Key derivation for per-user preference files.
@@ -7,7 +7,7 @@ import { USER_PREFERENCES_PREFIX } from "./blob.js";
  * @remarks
  * Preference files live under the reserved `user-preferences/` prefix, owned by the
  * principal-scoped preference tools. The prefix and its guards come from the reserved-namespace
- * registry in `./blob.js`, which is what keeps any general-purpose Blob tool from using the
+ * registry in `./documents.js`, which is what keeps any general-purpose document tool from using the
  * namespace as a side channel to read or overwrite another user's preferences.
  */
 
@@ -24,7 +24,7 @@ type UserPrincipal =
   | undefined;
 
 /**
- * Resolve the Blob key holding the current user's preferences.
+ * Resolve the document key holding the current user's preferences.
  *
  * @remarks
  * The key is derived entirely from the framework-resolved principal — never from model input —
@@ -34,7 +34,7 @@ type UserPrincipal =
  * `null` so the tools can decline rather than share a single anonymous file.
  *
  * @param principal - The value of `ctx.session.auth.current`.
- * @returns The reserved Blob key for this user, or `null` when there is no user principal.
+ * @returns The reserved document key for this user, or `null` when there is no user principal.
  */
 export const userPreferencesKey = (principal: UserPrincipal): string | null => {
   if (principal?.principalType !== "user" || !principal.principalId) {

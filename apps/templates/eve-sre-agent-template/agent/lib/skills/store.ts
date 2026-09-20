@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { resolveSlackUser, type SlackUserAuthLike, type SlackUserIdentity } from "#lib/auth.ts";
-import { type BlobObjectStore, createBlobObjectStore } from "#lib/blob.ts";
+import { createObjectStore, type ObjectStore } from "#lib/object-store.ts";
 
-const BLOB_ROOT = "sre-custom-skills";
+const STORE_ROOT = "sre-custom-skills";
 
 export const MAX_SKILL_NAME_LENGTH = 64;
 export const MAX_SKILL_DESCRIPTION_LENGTH = 1024;
@@ -89,12 +89,12 @@ function ownerKey(principalId: string): string {
 
 function scopePrefix(user: SlackUserIdentity | null, scope: SkillScope): string {
   if (scope === "global") {
-    return `${BLOB_ROOT}/global/`;
+    return `${STORE_ROOT}/global/`;
   }
   if (!user) {
     throw new MissingHumanUserError();
   }
-  return `${BLOB_ROOT}/users/${ownerKey(user.principalId)}/`;
+  return `${STORE_ROOT}/users/${ownerKey(user.principalId)}/`;
 }
 
 function skillPath(user: SlackUserIdentity, scope: SkillScope, name: string): string {
@@ -133,13 +133,13 @@ function validateSkillContent(input: SaveSkillInput): {
   return { description, markdown, name };
 }
 
-const blobObjectStore = createBlobObjectStore();
+const objectStore = createObjectStore();
 
 export class CustomSkillStore {
-  private readonly objects: BlobObjectStore;
+  private readonly objects: ObjectStore;
   private readonly now: () => Date;
 
-  constructor(objects: BlobObjectStore = blobObjectStore, now: () => Date = () => new Date()) {
+  constructor(objects: ObjectStore = objectStore, now: () => Date = () => new Date()) {
     this.objects = objects;
     this.now = now;
   }

@@ -1,17 +1,17 @@
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
-import { deleteDocument } from "#lib/blob.js";
+import { deleteDocument } from "#lib/documents.js";
 import { userPreferencesKey } from "#lib/user-preferences.js";
 
 /**
  * Tool that permanently deletes the current user's saved preferences.
  *
  * @remarks
- * The Blob key is derived from the framework-resolved principal (`ctx.session.auth.current`),
+ * The document key is derived from the framework-resolved principal (`ctx.session.auth.current`),
  * never from model input, so a session can only ever clear its own user's preferences.
  * Deletion is irreversible, so it is gated on human approval via `always()`.
- * Authorization resolves from the ambient Vercel OIDC credentials.
+ *
  */
 export default defineTool({
   approval: always(),

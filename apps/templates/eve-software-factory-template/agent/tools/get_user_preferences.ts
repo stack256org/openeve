@@ -1,18 +1,17 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { readDocument } from "#lib/blob.js";
+import { readDocument } from "#lib/documents.js";
 import { userPreferencesKey } from "#lib/user-preferences.js";
 
 /**
- * Tool that loads the current user's saved style preferences from Vercel Blob.
+ * Tool that loads the current user's saved style preferences from the document store.
  *
  * @remarks
- * The Blob key is derived from the framework-resolved principal (`ctx.session.auth.current`),
+ * The document key is derived from the framework-resolved principal (`ctx.session.auth.current`),
  * never from model input, so a session can only ever read its own user's preferences. Returns
  * `found: false` with empty `preferences` when the user has none yet, or with a `note` when the
  * run has no user principal at all (unattended intake runs as a service principal) — both are
- * normal states, not errors, so neither sets `error`. Authorization resolves from the ambient
- * Vercel OIDC credentials.
+ * normal states, not errors, so neither sets `error`.
  */
 export default defineTool({
   description:

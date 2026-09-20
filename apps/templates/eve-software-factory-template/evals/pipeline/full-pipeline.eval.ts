@@ -4,7 +4,7 @@ import { calledInOrder, STATIONS } from "../helpers.js";
 export default defineEval({
   description:
     "A small real work item runs the whole line: all four stations fire in order and the final report names the branch or draft pull request that was delivered. Opt-in: this pushes a real branch to FACTORY_REPO, so run it deliberately against a scratch repository (pnpm eval pipeline/full-pipeline).",
-  tags: ["slow", "needs-connect", "pipeline"],
+  tags: ["slow", "needs-credentials", "pipeline"],
   async test(t) {
     await t.send(
       "Work item: add a short 'Reporting bugs' section to the README that asks reporters to include their version and reproduction steps. Run the full pipeline and deliver the result.",

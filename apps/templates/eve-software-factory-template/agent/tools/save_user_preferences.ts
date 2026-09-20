@@ -1,6 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { writeDocument } from "#lib/blob.js";
+import { writeDocument } from "#lib/documents.js";
 import { userPreferencesKey } from "#lib/user-preferences.js";
 
 /**
@@ -13,14 +13,14 @@ import { userPreferencesKey } from "#lib/user-preferences.js";
 const MAX_PREFERENCES_LENGTH = 20_000;
 
 /**
- * Tool that saves the current user's style preferences to Vercel Blob.
+ * Tool that saves the current user's style preferences to the document store.
  *
  * @remarks
- * The Blob key is derived from the framework-resolved principal (`ctx.session.auth.current`),
+ * The document key is derived from the framework-resolved principal (`ctx.session.auth.current`),
  * never from model input, so a session can only ever write its own user's preferences. This
  * overwrites the whole document, so the caller should `get_user_preferences` first, integrate
  * the new standing preference, and save the merged result — keeping the file curated rather than
- * append-only. Authorization resolves from the ambient Vercel OIDC credentials.
+ * append-only.
  */
 export default defineTool({
   description:
@@ -43,10 +43,10 @@ export default defineTool({
       };
     }
     try {
-      const blob = await writeDocument(key, preferences, {
+      const document = await writeDocument(key, preferences, {
         allowOverwrite: true,
       });
-      return { pathname: blob.pathname, success: true };
+      return { pathname: document.pathname, success: true };
     } catch (error) {
       return {
         error: error instanceof Error ? error.message : "Failed to save preferences",

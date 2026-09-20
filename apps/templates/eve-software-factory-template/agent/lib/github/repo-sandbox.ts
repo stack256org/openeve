@@ -8,8 +8,8 @@ import {
   sanitizeCommandOutput,
 } from "./bootstrap-diagnostics.js";
 import { FALLBACK_BOT_NAME, resolveBotName } from "./bot-name.js";
-import { githubCredentials } from "./credentials.js";
-import { brokerPolicy, mintInstallationToken, REMOTE_URL } from "./git-remote.js";
+import { githubToken } from "./credentials.js";
+import { brokerPolicy, REMOTE_URL } from "./git-remote.js";
 
 // Snapshot settings shared by every factory sandbox. One kept snapshot keeps
 // storage flat across template rebuilds; the 14-day expiration (Vercel removes
@@ -40,13 +40,12 @@ async function runOrThrow(sandbox: SandboxSession, command: string): Promise<voi
   }
 }
 
-// Mints the brokered installation token, translating a refusal (typically
-// "App authorization required" from Connect) into the actionable message.
-// The original error rides along as the cause; the token itself never
-// appears in either.
-async function mintTokenOrExplain(mint: () => Promise<string>): Promise<string> {
+// Reads the brokered GitHub token, translating a missing or refused
+// credential into the actionable message. The original error rides along as
+// the cause; the token itself never appears in either.
+function tokenOrExplain(read: () => string): string {
   try {
-    return await mint();
+    return read();
   } catch (error) {
     throw new Error(appAccessMessage(FACTORY_REPO), { cause: error });
   }
@@ -85,7 +84,7 @@ export function factoryRevalidationKey(): string {
  */
 export async function factoryBootstrap({ use }: SandboxBootstrapContext): Promise<void> {
   const sandbox = await use();
-  const token = await mintTokenOrExplain(() => mintInstallationToken(githubCredentials));
+  const token = tokenOrExplain(githubToken);
   await sandbox.setNetworkPolicy(brokerPolicy(token));
   try {
     try {
@@ -111,14 +110,13 @@ export async function factoryBootstrap({ use }: SandboxBootstrapContext): Promis
 const SAFE_BOT_NAME = /^[A-Za-z0-9._-]+$/;
 
 /**
- * The bot's commit identity, from the connector-resolved name.
+ * The bot's commit identity, from the resolved bot name.
  *
  * @remarks
  * Falls back to the static default when resolution fails (a commit identity
- * is needed even when the connector metadata is briefly unreachable) or when
- * the resolved name carries characters that don't belong in a shell-quoted
- * git config value; connector app slugs never do, but the name can also
- * arrive from an env override.
+ * is needed even when the name is unset) or when the resolved name carries
+ * characters that don't belong in a shell-quoted git config value; GitHub App
+ * slugs never do, but the name can also arrive from `FACTORY_BOT_NAME`.
  */
 async function gitIdentity(): Promise<{ email: string; name: string }> {
   const resolved = await resolveBotName().catch(() => FALLBACK_BOT_NAME);
@@ -151,7 +149,7 @@ export async function factoryOnSession({ use }: SandboxSessionContext): Promise<
     sandbox,
     `git config --global --add safe.directory /workspace && git config --global --add safe.directory /workspace/repo && git config --global user.name "${identity.name}" && git config --global user.email "${identity.email}"`,
   );
-  const token = await mintTokenOrExplain(() => mintInstallationToken(githubCredentials));
+  const token = tokenOrExplain(githubToken);
   await sandbox.setNetworkPolicy(brokerPolicy(token));
   try {
     await runOrThrow(

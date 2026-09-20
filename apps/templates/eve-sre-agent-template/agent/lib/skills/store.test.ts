@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { BlobObjectStore } from "#lib/blob.ts";
+import type { ObjectStore } from "#lib/object-store.ts";
 import {
   CustomSkillStore,
   InvalidSkillContentError,
@@ -10,7 +10,7 @@ import {
   normalizeSkillName,
 } from "./store.ts";
 
-class MemoryObjectStore implements BlobObjectStore {
+class MemoryObjectStore implements ObjectStore {
   readonly objects = new Map<string, string>();
 
   delete(objectPath: string): Promise<void> {
@@ -84,7 +84,7 @@ test("stores global and personal skills independently", async () => {
   );
 });
 
-test("overwrites a skill at its deterministic Blob path", async () => {
+test("overwrites a skill at its deterministic object key", async () => {
   const { objects, store } = testStore();
   await store.save(alice, "global", {
     description: "Use when deployment help is needed.",

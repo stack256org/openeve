@@ -1,7 +1,7 @@
 import { resolveSlackUser, type SlackUserAuthLike } from "#lib/auth.ts";
-import { createBlobObjectStore } from "#lib/blob.ts";
+import { createObjectStore } from "#lib/object-store.ts";
 
-const BLOB_ROOT = "sre-channel-watch";
+const STORE_ROOT = "sre-channel-watch";
 
 export interface ChannelWatchKey {
   readonly channelId: string;
@@ -29,22 +29,16 @@ export class ChannelWatchAuthError extends ChannelWatchStoreError {
 }
 
 function watchPath({ teamId, channelId }: ChannelWatchKey): string {
-  return `${BLOB_ROOT}/${teamId}/${channelId}.json`;
+  return `${STORE_ROOT}/${teamId}/${channelId}.json`;
 }
 
-// Fresh reads prevent watch and unwatch changes from using stale CDN state.
-const blobWatchObjectStore: WatchObjectStore = createBlobObjectStore({
-  useCache: false,
-});
+const watchObjectStore: WatchObjectStore = createObjectStore();
 
 export class ChannelWatchStore {
   private readonly objects: WatchObjectStore;
   private readonly now: () => Date;
 
-  constructor(
-    objects: WatchObjectStore = blobWatchObjectStore,
-    now: () => Date = () => new Date(),
-  ) {
+  constructor(objects: WatchObjectStore = watchObjectStore, now: () => Date = () => new Date()) {
     this.objects = objects;
     this.now = now;
   }

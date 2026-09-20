@@ -1,6 +1,5 @@
-import { connect } from "@vercel/connect/eve";
 import { defineMcpClientConnection } from "eve/connections";
-import { DATADOG_CONNECTOR, DATADOG_MCP_HOST } from "#lib/constants.ts";
+import { DATADOG_MCP_HOST } from "#lib/constants.ts";
 
 const DATADOG_MCP_TOOLSETS = ["core", "software-delivery"] as const;
 
@@ -31,10 +30,9 @@ export const DATADOG_MCP_TOOLS = [
  * on the MCP server. See https://docs.datadoghq.com/mcp_server/tools for all of the available tools.
  */
 export default defineMcpClientConnection({
-  auth: connect({
-    connector: DATADOG_CONNECTOR,
-    displayName: "Datadog",
-    principalType: "app",
+  headers: () => ({
+    DD_API_KEY: process.env.DD_API_KEY!,
+    DD_APPLICATION_KEY: process.env.DD_APPLICATION_KEY!,
   }),
   description:
     "Datadog observability: metrics, logs, traces, monitors, dashboards, notebooks, RUM, hosts, services, APM, CI pipelines, and more.",

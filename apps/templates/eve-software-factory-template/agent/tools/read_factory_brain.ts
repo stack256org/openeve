@@ -1,17 +1,17 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { readDocument } from "#lib/blob.js";
+import { readDocument } from "#lib/documents.js";
 import { factoryBrainKey } from "#lib/factory-brain.js";
 
 /**
- * Tool that loads the shared factory brain from Vercel Blob.
+ * Tool that loads the shared factory brain from the document store.
  *
  * @remarks
- * The Blob key is derived from `FACTORY_REPO`, never from model input, so every session on the
+ * The document key is derived from `FACTORY_REPO`, never from model input, so every session on the
  * deployment reads the same shared document (see `factoryBrainKey`). Reading is unrestricted:
  * every run, unattended included, may load the brain for context. Returns `found: false` with an
  * empty `brain` when nothing has been recorded yet, which is a normal state, not an error.
- * Authorization resolves from the ambient Vercel OIDC credentials.
+ *
  */
 export default defineTool({
   description:

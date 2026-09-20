@@ -1,23 +1,26 @@
-import { connectGitHubCredentials } from "@vercel/connect/eve";
-
 /**
- * Vercel Connect connector UID for the factory's GitHub App installation.
+ * The token the factory's GitHub surfaces authenticate with.
  *
  * @remarks
- * One connector serves every GitHub surface: the channel (webhooks, replies),
- * the `github` extension's tools, and the brokered git credential the station
- * sandboxes clone, fetch, and push with. The fallback is this template's own
- * connector UID; deployments set `GITHUB_CONNECTOR` to their own.
- */
-export const GITHUB_CONNECTOR = process.env.GITHUB_CONNECTOR ?? "github/foreman-agent";
-
-/**
- * Connect-managed GitHub App credentials shared by the channel and the git
- * helpers.
+ * One token serves every GitHub surface that needs to act as the factory: the
+ * `github` extension's tools and the git credential the station sandboxes
+ * clone, fetch, and push with. A GitHub App installation token or a
+ * fine-grained personal access token both work; it needs contents and pull
+ * request write access on {@link FACTORY_REPO}, and issue write access for
+ * triage.
  *
- * @remarks
- * Tokens are resolved lazily per use and never exposed to the model; the git
- * helpers inject them at the sandbox firewall (see
- * `agent/lib/github/git-remote.ts`), so they never enter the sandbox either.
+ * The channel is separate: it verifies webhooks and replies as the GitHub App
+ * itself, so eve reads `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
+ * `GITHUB_APP_SLUG`, and `GITHUB_WEBHOOK_SECRET` for that.
+ *
+ * Resolved per use and never exposed to the model; the git helpers inject it
+ * at the sandbox firewall (see `agent/lib/github/git-remote.ts`), so it never
+ * enters the sandbox either.
  */
-export const githubCredentials = connectGitHubCredentials(GITHUB_CONNECTOR);
+export function githubToken(): string {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("GITHUB_TOKEN environment variable is not set.");
+  }
+  return token;
+}

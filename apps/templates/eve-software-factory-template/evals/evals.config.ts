@@ -1,4 +1,13 @@
+import { createOpenAI } from "@ai-sdk/openai";
 import { defineEvalConfig } from "eve/evals";
+
+// Google serves an OpenAI-compatible chat-completions API, so the OpenAI provider talks to
+// Gemini directly. `.chat()` is deliberate: the provider's callable default is the Responses
+// API, which this endpoint does not serve.
+const google = createOpenAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+});
 
 /**
  * Run-wide eval configuration.
@@ -10,5 +19,5 @@ import { defineEvalConfig } from "eve/evals";
  * README's evals section for the full matrix.
  */
 export default defineEvalConfig({
-  judge: { model: "google/gemini-3.6-flash" },
+  judge: { model: google.chat("gemini-3.6-flash") },
 });

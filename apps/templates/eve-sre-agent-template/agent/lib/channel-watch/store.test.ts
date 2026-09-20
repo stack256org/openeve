@@ -51,7 +51,7 @@ test("uses the raw Slack IDs in the watch path", async () => {
   });
 });
 
-test("has reflects blob presence", async () => {
+test("has reflects stored object presence", async () => {
   const { store } = testStore();
   assert.equal(await store.has(key), false);
   await store.watch(alice, key);
@@ -60,7 +60,7 @@ test("has reflects blob presence", async () => {
   assert.equal(await store.has(key), false);
 });
 
-test("watch overwrites one deterministic blob", async () => {
+test("watch overwrites one deterministic object", async () => {
   const { objects, store } = testStore();
   await store.watch(alice, key);
   await store.watch(alice, key);
@@ -72,7 +72,7 @@ test("watch overwrites one deterministic blob", async () => {
   });
 });
 
-test("unwatch succeeds when the blob is missing", async () => {
+test("unwatch succeeds when the object is missing", async () => {
   const { objects, store } = testStore();
   await store.unwatch(alice, key);
   assert.equal(objects.objects.size, 0);

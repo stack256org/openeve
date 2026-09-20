@@ -3,7 +3,6 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - "@ai-sdk/*"
   - "@github-tools/*"
-  - "@vercel/*"
   - "@workflow/*"
   - ai
   - eve

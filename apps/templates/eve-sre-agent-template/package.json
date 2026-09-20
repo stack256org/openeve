@@ -21,8 +21,6 @@
   "dependencies": {
     "@ai-sdk/openai": "4.0.8",
     "@github-tools/eve-extension": "^0.3.2",
-    "@vercel/blob": "2.4.0",
-    "@vercel/connect": "0.4.2",
     "eve": "0.44.4",
     "zod": "4.3.6"
   },

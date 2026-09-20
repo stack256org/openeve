@@ -1,11 +1,7 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import { callSlackApi } from "eve/channels/slack";
 import { defineTool } from "eve/tools";
 import z from "zod";
-import { SLACK_CONNECTOR } from "#lib/constants.ts";
 import { compactSlackMessage, normalizeSlackChannelId } from "#lib/slack/parse.ts";
-
-const { botToken } = connectSlackCredentials(SLACK_CONNECTOR);
 
 const slackReadChannelMessagesInputSchema = z.object({
   channelId: z
@@ -52,7 +48,7 @@ export default defineTool({
         limit,
         oldest: oldest?.trim() || undefined,
       },
-      botToken,
+      botToken: process.env.SLACK_BOT_TOKEN,
       operation: "conversations.history",
     });
 

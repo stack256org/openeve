@@ -1,4 +1,3 @@
-import type { GitHubChannelCredentials } from "eve/channels/github";
 import type { SandboxNetworkPolicy } from "eve/sandbox";
 import { FACTORY_REPO } from "../constants.js";
 
@@ -51,35 +50,20 @@ export function validateBranch(branch: string): string | null {
 }
 
 /**
- * Firewall policy that brokers the installation token onto egress to
- * github.com only, mirroring the shape eve's own channel checkout uses.
+ * Firewall policy that brokers the GitHub token onto egress to github.com
+ * only, mirroring the shape eve's own channel checkout uses.
  *
  * @remarks
  * The token never enters the sandbox process; the firewall injects the header
  * on the way out. `"*": []` keeps general egress open so package installs and
  * test runs keep working while the policy is active.
  */
-export function brokerPolicy(installationToken: string): SandboxNetworkPolicy {
-  const authorization = `Basic ${Buffer.from(`x-access-token:${installationToken}`).toString(
-    "base64",
-  )}`;
+export function brokerPolicy(token: string): SandboxNetworkPolicy {
+  const authorization = `Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
   return {
     allow: {
       "*": [],
       "github.com": [{ transform: [{ headers: { Authorization: authorization } }] }],
     },
   };
-}
-
-/**
- * Resolves the Connect-managed installation token, minting when it is lazy.
- */
-export async function mintInstallationToken(
-  credentials: GitHubChannelCredentials,
-): Promise<string> {
-  const token = credentials.installationToken;
-  if (token === undefined) {
-    throw new Error("The GitHub connector exposes no installation token.");
-  }
-  return typeof token === "function" ? await token() : token;
 }

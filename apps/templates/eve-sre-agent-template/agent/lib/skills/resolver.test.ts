@@ -67,7 +67,7 @@ test("keeps available skills when one scope fails to load", async () => {
     {
       list(_auth, scope) {
         if (scope === "global") {
-          return Promise.reject(new Error("Blob unavailable"));
+          return Promise.reject(new Error("Store unavailable"));
         }
         return Promise.resolve([userSkill]);
       },
@@ -80,7 +80,7 @@ test("keeps available skills when one scope fails to load", async () => {
 test("continues without custom skills when storage is unavailable", async () => {
   const resolved = await resolveCustomSkills(null, {
     list() {
-      throw new Error("Blob store is unavailable");
+      throw new Error("Object store is unavailable");
     },
   });
 

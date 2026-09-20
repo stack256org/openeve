@@ -33,7 +33,7 @@ const toolCallOrder = (events: readonly MessageStreamEvent[]): string[] => {
 export default defineEval({
   description:
     "Classifying a GitHub issue mirrors the result onto it as labels: the repo's vocabulary is read before any label write, and a label write (addLabels or updateIssue) is among the approvals the untrusted eval principal parks on; a progress comment may park alongside it. Needs at least one open issue (#1) on FACTORY_REPO.",
-  tags: ["fast", "needs-connect"],
+  tags: ["fast", "needs-credentials"],
   async test(t) {
     await t.send(
       "Run issue #1 on the repository through the classifier and mirror the classification onto the issue, then stop; do not run the analyst or any later station.",

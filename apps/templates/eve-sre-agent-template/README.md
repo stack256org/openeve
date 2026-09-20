@@ -1,17 +1,12 @@
-[deploy-with-vercel]: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Feve-sre-agent-template%2Ftree%2Fmain&project-name=sre&repository-name=sre&from=templates&products=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22private%22%7D%5D&connect=%5B%7B%22type%22%3A%22slack%22%2C%22env%22%3A%22SLACK_CONNECTOR%22%2C%22triggers%22%3Atrue%2C%22triggerPath%22%3A%22%2Feve%2Fv1%2Fslack%22%7D%2C%7B%22type%22%3A%22github%22%2C%22env%22%3A%22GITHUB_CONNECTOR%22%7D%2C%7B%22type%22%3A%22datadog%22%2C%22env%22%3A%22DATADOG_CONNECTOR%22%7D%2C%7B%22type%22%3A%22vercel%22%2C%22env%22%3A%22SRE_VERCEL_CONNECTOR%22%7D%5D
-
 ![sre banner](./.github/banner.png)
 
 # sre
 
-[![Agent Stack](https://img.shields.io/badge/Agent%20Stack-000?style=flat-square&logo=vercel&logoColor=FFF&labelColor=000&color=000)](https://vercel.com/kb/agent-stack)
 [![MIT License](https://img.shields.io/badge/License-MIT-000?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=000&color=000)](LICENSE)
 
-sre is an [eve](https://eve.dev) incident response agent for Slack. It brings together the observability data you need to debug an alert or incident across Datadog, GitHub, Vercel, and other tools. Investigations are read-only by default.
+sre is an [eve](https://eve.dev) incident response agent for Slack. It brings together the observability data you need to debug an alert or incident across Datadog, GitHub, and other tools. Investigations are read-only by default.
 
 Mention `@sre`, watch a channel for alerts, or invoke it from an external system with a webhook. The agent checks hypotheses against live signals and records each finding with a source link. Replies start with the answer, then the supporting evidence.
-
-[![Deploy with Vercel](https://vercel.com/button)][deploy-with-vercel]
 
 ## How it works
 
@@ -25,23 +20,20 @@ The agent records novel, decision-relevant findings with source links. Each inve
 
 Automated runs use webhook metadata and service-authenticated tools. They do not use per-user OAuth.
 
-Channel watch and custom skills are optional. Both store state in Vercel Blob. The Blob store is required only for these two features.
+Channel watch and custom skills are optional. Both store state as files under `EVE_DATA_DIR` (default `./data`). On a host with an ephemeral filesystem, point that at a mounted volume or the state resets on every redeploy.
 
 ## Set up the project
 
-Select [**Deploy with Vercel**][deploy-with-vercel] to clone the repository, create a Vercel project, and provision the connectors and storage.
+Every integration reads a plain environment variable, so the agent runs anywhere Node 24 does. Copy [`.env.example`](./.env.example) to `.env` and fill it in:
 
-| Provisioned                                       | Sets                              |
-| ------------------------------------------------- | --------------------------------- |
-| Slack connector with trigger path `/eve/v1/slack` | `SLACK_CONNECTOR`                 |
-| GitHub connector, read-only install               | `GITHUB_CONNECTOR`                |
-| Datadog connector                                 | `DATADOG_CONNECTOR`               |
-| Vercel MCP connector                              | `SRE_VERCEL_CONNECTOR`            |
-| Private Vercel Blob store                         | Vercel Blob environment variables |
+1. Create a Slack app, install it to your workspace, and copy `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET`. Point its Event Subscriptions request URL at `<your-agent-url>/eve/v1/slack`.
+2. Create a fine-grained GitHub personal access token with read-only repository access and set `GITHUB_TOKEN`.
+3. Create a Datadog API key and application key, ideally on a read-only service account, and set `DD_API_KEY` and `DD_APPLICATION_KEY`.
+4. Set `OPENAI_API_KEY` for the agent's model.
 
-For a complete CLI setup with your agent, use [`docs/setup-for-agents.md`](./docs/setup-for-agents.md).
+For a complete step-by-step setup with your agent, use [`docs/setup-for-agents.md`](./docs/setup-for-agents.md).
 
-After deployment:
+Then:
 
 1. Invite the Slack app to a channel.
 2. Mention `@sre` and confirm that the app replies.
@@ -51,8 +43,7 @@ After deployment:
 
 ```bash
 pnpm install
-vercel link
-vercel env pull
+cp .env.example .env
 pnpm dev
 ```
 
@@ -60,12 +51,15 @@ pnpm dev
 
 | Variable               | Required | Default         | What it does                                                                                            |
 | ---------------------- | -------- | --------------- | ------------------------------------------------------------------------------------------------------- |
-| `SLACK_CONNECTOR`      | No       | `slack/sre`     | Connector UID for the Slack channel and bot Web API.                                                    |
-| `GITHUB_CONNECTOR`     | No       | `github/sre`    | Connector UID for the GitHub tools extension.                                                           |
-| `DATADOG_CONNECTOR`    | No       | `datadog/sre`   | Connector UID for the Datadog MCP tools.                                                                |
-| `SRE_VERCEL_CONNECTOR` | No       | `vercel/sre`    | Connector UID for the Vercel MCP tools.                                                                 |
-| `WEBHOOK_SECRET`       | No       | none            | Shared secret for `POST /v1/investigate`. Use a long random value from Node crypto (`randomBytes(32)`). |
+| `SLACK_BOT_TOKEN`      | Yes      | none            | Slack bot token for the channel and the bot Web API tools.                                              |
+| `SLACK_SIGNING_SECRET` | Yes      | none            | Slack signing secret used to verify inbound requests.                                                   |
+| `OPENAI_API_KEY`       | Yes      | none            | Model provider key for the agent's model.                                                               |
+| `GITHUB_TOKEN`         | No       | none            | GitHub token for the read-only GitHub tools extension.                                                  |
+| `DD_API_KEY`           | No       | none            | Datadog API key, sent to the Datadog MCP server as the `DD_API_KEY` header.                             |
+| `DD_APPLICATION_KEY`   | No       | none            | Datadog application key, sent as the `DD_APPLICATION_KEY` header.                                       |
 | `DD_SITE`              | No       | `datadoghq.com` | Datadog site for MCP. Examples are `datadoghq.eu` and `us5.datadoghq.com`.                              |
+| `EVE_DATA_DIR`         | No       | `./data`        | Directory holding channel watches and custom skills. Use a mounted volume to survive a redeploy.        |
+| `WEBHOOK_SECRET`       | No       | none            | Shared secret for `POST /v1/investigate`. Use a long random value from Node crypto (`randomBytes(32)`). |
 
 Copy [`.env.example`](./.env.example) to `.env` to set local environment variables.
 
@@ -79,12 +73,12 @@ The endpoint uses `WEBHOOK_SECRET`. Send the secret with `x-sre-webhook-secret` 
 
 - Edit `agent/instructions/instructions.md` to change general behavior.
 - Edit the built-in skills in `agent/skills/` to change investigation and handoff procedures.
-- Add tools or connections for other operational systems using Vercel Connect.
+- Add tools or connections for other operational systems in `agent/connections/`.
 - Integrate with `agent/channels/webhook.ts` to invoke the agent from any external system (see [`docs/automate-investigations.md`](./docs/automate-investigations.md)).
 
 ### Create runbooks in Slack
 
-Ask `@sre` to create a runbook for a recurring alert or incident. Global runbooks apply to every session. Personal runbooks apply only to the requesting Slack user and override global runbooks with the same name. The agent loads a saved runbook on a later matching request, not during the request that creates it. Private Vercel Blob storage is required to save and load runbooks.
+Ask `@sre` to create a runbook for a recurring alert or incident. Global runbooks apply to every session. Personal runbooks apply only to the requesting Slack user and override global runbooks with the same name. The agent loads a saved runbook on a later matching request, not during the request that creates it. Runbooks are stored as files under `EVE_DATA_DIR`.
 
 ## Verify changes
 
@@ -98,15 +92,12 @@ pnpm test
 - If Slack mentions do not arrive, confirm that the trigger path is `/eve/v1/slack`.
 - If a webhook returns `401`, confirm that the caller and the deployment use the same `WEBHOOK_SECRET`.
 - If an investigation does not start, confirm that the bot is a member of `slackChannel`.
-- If custom skills fail to save, confirm that the private Blob store is connected.
-- If Vercel tools request authorization, complete the Vercel Connect sign-in for the Slack user. Automated runs do not have a user identity, so they cannot use this connection.
+- If custom skills fail to save, confirm that `EVE_DATA_DIR` exists and is writable by the process.
 
 ## Learn more
 
 - [eve documentation](https://eve.dev/docs/introduction)
 - [Automate investigations with generic webhooks](./docs/automate-investigations.md)
-- [Vercel Connect](https://vercel.com/docs/connect)
-- [Vercel Blob](https://vercel.com/docs/vercel-blob)
 
 ## Explore more templates
 

@@ -10,7 +10,7 @@ import { isAutonomous } from "../lib/trust.js";
  * - Points at Linear's hosted MCP server and authenticates with the shared
  *   app-scoped `linearAuth` from `agent/lib/constants.ts`, so this connection
  *   and any tool calling the Linear API directly share one installation and
- *   one set of scopes. Tokens are resolved per call and never exposed to the
+ *   one set of scopes. The token is read per call and never exposed to the
  *   model.
  * - The connection-wide approval predicate denies unattended factory runs, so
  *   a prompt-injected labeled issue cannot fan out into the tracker. Every

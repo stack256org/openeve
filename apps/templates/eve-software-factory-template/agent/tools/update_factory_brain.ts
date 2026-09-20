@@ -1,21 +1,20 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { writeDocument } from "#lib/blob.js";
+import { writeDocument } from "#lib/documents.js";
 import { factoryBrainKey, MAX_FACTORY_BRAIN_LENGTH } from "#lib/factory-brain.js";
 import { factoryBrainPolicy } from "#lib/github/approval.js";
 
 /**
- * Tool that writes the shared factory brain to Vercel Blob.
+ * Tool that writes the shared factory brain to the document store.
  *
  * @remarks
- * The Blob key is derived from `FACTORY_REPO`, never from model input, so a write updates the one
+ * The document key is derived from `FACTORY_REPO`, never from model input, so a write updates the one
  * shared document every session reads (see `factoryBrainKey`). Writes are gated by
  * `factoryBrainPolicy`: unattended runs are denied (a labeled issue's body is untrusted and must
  * not poison shared context), trusted callers write without a card, and everyone else parks on
  * approval. This overwrites the whole document, so the caller should `read_factory_brain` first,
  * merge in the new durable fact, and save the result, keeping the brain curated rather than
- * append-only. Authorization for the Blob store resolves from the ambient Vercel OIDC
- * credentials.
+ * append-only.
  */
 export default defineTool({
   approval: factoryBrainPolicy,
@@ -34,8 +33,8 @@ export default defineTool({
   async execute({ brain }) {
     const key = factoryBrainKey();
     try {
-      const blob = await writeDocument(key, brain, { allowOverwrite: true });
-      return { pathname: blob.pathname, success: true };
+      const document = await writeDocument(key, brain, { allowOverwrite: true });
+      return { pathname: document.pathname, success: true };
     } catch (error) {
       return {
         error: error instanceof Error ? error.message : "Failed to update the factory brain",

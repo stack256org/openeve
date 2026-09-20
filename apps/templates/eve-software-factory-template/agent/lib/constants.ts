@@ -1,13 +1,11 @@
-import { connect } from "@vercel/connect/eve";
-
 /**
  * Reads a required environment variable, throwing if it is unset so
  * misconfiguration fails fast instead of surfacing mid-request.
  *
  * @remarks
- * Call it at module load when the value is needed for discovery (connector
- * UIDs, channel credentials), or inside a handler when a missing value
- * should not prevent the rest of the agent from loading.
+ * Call it at module load when the value is needed for discovery, or inside a
+ * handler when a missing value should not prevent the rest of the agent from
+ * loading.
  *
  * @param name - The environment variable name.
  * @param example - An example value, included in the error message.
@@ -75,30 +73,19 @@ export const FACTORY_LABEL = process.env.FACTORY_LABEL ?? "factory";
 export const FACTORY_BRANCH_PREFIX = process.env.FACTORY_BRANCH_PREFIX ?? "factory/";
 
 /**
- * Shared Linear authorization via Vercel Connect.
+ * Shared Linear authorization.
  *
- * Single source of truth for the Linear connector so every consumer — the
- * Linear MCP connection and any tool calling the GraphQL API directly —
+ * Single source of truth for the Linear token so every consumer — the Linear
+ * MCP connection, the channel, and any tool calling the GraphQL API directly —
  * shares one Linear installation and one set of scopes.
  *
  * @remarks
- * - App-scoped (`principalType: "app"`), so no per-user consent flow is
- *   required; tokens are minted for the installation itself.
- * - Tokens are requested per call via `ctx.getToken(linearAuth)`, cached per
- *   step by eve, and never exposed to the model.
- * - The connector UID comes from the `LINEAR_CONNECTOR` environment variable
- *   (e.g. `linear/foreman-agent`); the module throws at load time if it
- *   is not set.
- *
- * @example
- * ```ts
- * const { token } = await ctx.getToken(linearAuth);
- * ```
+ * - The token is an app-scoped Linear OAuth token (installed with `actor=app`)
+ *   or API key in `LINEAR_AGENT_ACCESS_TOKEN`, so no per-user consent flow is
+ *   required. Grant it only the scopes the factory needs: read, write,
+ *   issues:create, comments:create.
+ * - It is read per call and never exposed to the model.
  */
-export const linearAuth = connect({
-  connector: requireEnv("LINEAR_CONNECTOR", "linear/foreman-agent"),
-  principalType: "app",
-  tokenParams: {
-    scopes: ["read", "write", "issues:create", "comments:create"],
-  },
-});
+export const linearAuth = {
+  getToken: async () => ({ token: process.env.LINEAR_AGENT_ACCESS_TOKEN! }),
+};

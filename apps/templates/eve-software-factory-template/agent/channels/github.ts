@@ -6,7 +6,6 @@ import {
 } from "eve/channels/github";
 import { FACTORY_BRANCH_PREFIX, FACTORY_LABEL } from "../lib/constants.js";
 import { mentionPattern, resolveBotName } from "../lib/github/bot-name.js";
-import { githubCredentials } from "../lib/github/credentials.js";
 import { stampAutonomous, stampTrusted } from "../lib/trust.js";
 
 /**
@@ -134,18 +133,18 @@ const PR_SUMMARY_TASK = [
  * "Foreman".
  *
  * @remarks
- * - Credentials are brokered by Vercel Connect through the shared handle in
- *   `agent/lib/github/credentials.ts`; tokens are resolved per call and never
- *   exposed to the model.
+ * - eve reads the GitHub App credentials from the environment
+ *   (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`) to
+ *   verify inbound webhooks and reply as the app; they are never exposed to
+ *   the model.
  * - The name the factory answers to is resolved from the GitHub App's own
  *   slug (`agent/lib/github/bot-name.ts`), so the mention follows whatever
  *   the deployer named their app with no configuration, and a hardcoded
  *   handle can't collide with an unrelated GitHub user. `botName` is passed
  *   as the resolver function, not a resolved value: eve calls it on first
- *   use inside request handling, where the deployment's OIDC token exists
- *   (at module load it doesn't, so a value resolved here would pin the
- *   fallback), caches a fulfilled name, and retries a rejection on the next
- *   event.
+ *   use inside request handling, caches a fulfilled name, and retries a
+ *   rejection on the next event, so a value missing at boot can't pin the
+ *   fallback.
  * - `onComment` replaces the built-in mention gate to add an authorization
  *   check: it keeps the default mention and ignore rules, then dispatches
  *   only when the commenter's `author_association` marks them as trusted with
@@ -178,7 +177,7 @@ const PR_SUMMARY_TASK = [
  *   red PR never triggers an uninvited fix. The session runs unattended under
  *   the autonomous principal, anchored to the pull request, and the injected
  *   task bounds the loop by counting earlier fix-attempt comments on the
- *   thread. Requires the connector to subscribe to the `check_suite` webhook
+ *   thread. Requires the GitHub App to subscribe to the `check_suite` webhook
  *   event.
  * - Human-in-the-loop prompts are the channel's own (eve ≥ 0.34 posts them by
  *   default): when a session stops for approval or input, the channel renders
@@ -190,7 +189,6 @@ const PR_SUMMARY_TASK = [
  */
 export default githubChannel({
   botName: resolveBotName,
-  credentials: githubCredentials,
   onCheckSuite: (ctx, suite) => {
     const raw = suite.raw as {
       head_branch?: unknown;

@@ -19,7 +19,7 @@ The application follows one simple flow:
 prompt → four parallel council members → judge answer + agreement scores
 ```
 
-The root [eve agent](https://eve.dev/docs/) delegates the same prompt to four declared [subagents](https://eve.dev/docs/subagents). Each subagent has a fixed AI Gateway model and runs in its own durable session. The Next.js client follows those child [session streams](https://eve.dev/docs/concepts/sessions-runs-and-streaming) so every response appears independently as it is generated.
+The root [eve agent](https://eve.dev/docs/) delegates the same prompt to four declared [subagents](https://eve.dev/docs/subagents). Each subagent has a fixed model, called directly against its provider, and runs in its own durable session. The Next.js client follows those child [session streams](https://eve.dev/docs/concepts/sessions-runs-and-streaming) so every response appears independently as it is generated.
 
 After all four members finish, the root agent returns a concise answer and per-model agreement scores using a [structured output schema](https://eve.dev/docs/guides/client/output-schema). [`withEve()` and `useEveAgent()`](https://eve.dev/docs/guides/frontend/nextjs) keep the agent routes and UI in the same Next.js application.
 
@@ -34,11 +34,24 @@ The main pieces are:
 
 ```bash
 pnpm install
-pnpm exec eve link
+cp .env.example .env.local
 pnpm dev
 ```
 
-`eve link` connects the app to a Vercel project and pulls the AI Gateway credentials needed by the models. Open the local URL printed by Next.js.
+Open the local URL printed by Next.js.
+
+## Models
+
+Every member calls its provider directly; there is no gateway in the path. Set one API key per member in `.env.local`:
+
+| Member           | Model           | Provider endpoint            | Variable            |
+| ---------------- | --------------- | ---------------------------- | ------------------- |
+| Anthropic Claude | `claude-opus-5` | Anthropic (native)           | `ANTHROPIC_API_KEY` |
+| OpenAI GPT       | `gpt-5.6-sol`   | OpenAI (native)              | `OPENAI_API_KEY`    |
+| xAI Grok         | `grok-4.5`      | `https://api.x.ai/v1`        | `XAI_API_KEY`       |
+| Moonshot AI Kimi | `kimi-k3`       | `https://api.moonshot.ai/v1` | `MOONSHOT_API_KEY`  |
+
+xAI and Moonshot AI both serve OpenAI-compatible APIs, so they are reached with the OpenAI provider pointed at their own `baseURL`. The root judge agent uses the same Anthropic key as the Claude member.
 
 ## Checks
 

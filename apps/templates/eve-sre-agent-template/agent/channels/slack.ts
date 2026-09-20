@@ -1,4 +1,3 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import {
   defaultSlackAuth,
   type SlackChannelEvents,
@@ -9,11 +8,9 @@ import {
 import { createServiceAuth } from "#lib/auth.ts";
 import { admitChannelWatchMessage, type ChannelWatchMessage } from "#lib/channel-watch/admit.ts";
 import { getChannelWatchStore } from "#lib/channel-watch/store.ts";
-import { SLACK_CONNECTOR } from "#lib/constants.ts";
 import { getInvestigationEvidence } from "#lib/evidence.ts";
 import { buildInvestigationResultMessage } from "#lib/slack/investigation-rendering.ts";
 
-const slackCredentials = connectSlackCredentials(SLACK_CONNECTOR);
 const LINE_SPLIT = /\r?\n/u;
 
 /**
@@ -124,8 +121,6 @@ const investigationMessageCompleted: NonNullable<SlackChannelEvents["message.com
 
 export default slackChannel({
   botName: "sre",
-  credentials: slackCredentials,
-
   events: {
     // Replaces only eve's default message.completed; all other event defaults still run.
     "message.completed": investigationMessageCompleted,

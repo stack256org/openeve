@@ -1,4 +1,4 @@
-import { ARTIFACTS_PREFIX } from "../blob.js";
+import { ARTIFACTS_PREFIX } from "../documents.js";
 
 /**
  * Key layout, bounds, and id handling for handoff artifacts.
@@ -7,7 +7,7 @@ import { ARTIFACTS_PREFIX } from "../blob.js";
  * A handoff artifact is a Markdown document one station produces and another reads, passed by id
  * rather than by pasting its text through the orchestrator's context. The id is the whole
  * contract, so this module owns both directions of it: {@link artifactId} builds one that is
- * readable enough to debug, and {@link artifactKey} maps it back to a Blob key while refusing
+ * readable enough to debug, and {@link artifactKey} maps it back to a document key while refusing
  * anything that could escape the reserved prefix.
  *
  * Ids are model-supplied on read, which is why {@link ARTIFACT_ID_PATTERN} is strict rather than
@@ -15,8 +15,8 @@ import { ARTIFACTS_PREFIX } from "../blob.js";
  * document through a tool that was never meant to reach one.
  *
  * Artifacts live under the reserved `artifacts/` prefix. The prefix and its guards come from
- * the reserved-namespace registry in `../blob.js`, which is what keeps any general-purpose Blob
- * tool from reaching a handoff document; this module keeps the namespace reachable only by a
+ * the reserved-namespace registry in `../documents.js`, which is what keeps any general-purpose
+ * document tool from reaching a handoff document; this module keeps the namespace reachable only by a
  * validated id.
  */
 
@@ -58,7 +58,7 @@ const SLUG_TRIM = /^-+|-+$/g;
  *
  * @remarks
  * Anchored, with no dots or slashes permitted, so a validated id cannot traverse out of
- * {@link ARTIFACTS_PREFIX} when it is interpolated into a Blob key.
+ * {@link ARTIFACTS_PREFIX} when it is interpolated into a document key.
  */
 export const ARTIFACT_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -103,7 +103,7 @@ export const artifactId = (kind: string, title: string): string => {
 };
 
 /**
- * Map an artifact id to its Blob key.
+ * Map an artifact id to its document key.
  *
  * @remarks
  * Returns `null` for anything that fails {@link ARTIFACT_ID_PATTERN}, which is the guard that
@@ -111,7 +111,7 @@ export const artifactId = (kind: string, title: string): string => {
  * rather than surfacing the distinction, so a probe learns nothing from the difference.
  *
  * @param id - Model-supplied artifact id.
- * @returns The Blob key, or `null` when the id is not a valid artifact id.
+ * @returns The document key, or `null` when the id is not a valid artifact id.
  */
 export const artifactKey = (id: string): string | null =>
   ARTIFACT_ID_PATTERN.test(id) ? `${ARTIFACTS_PREFIX}${id}.md` : null;

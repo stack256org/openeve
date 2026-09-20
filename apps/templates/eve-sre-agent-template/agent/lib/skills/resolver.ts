@@ -35,7 +35,7 @@ export async function resolveCustomSkills(
   ] as const) {
     if (result.status === "rejected") {
       console.warn(
-        "[sre/custom-skills] custom skills unavailable; continuing without them. Configure a Vercel Blob store to enable custom skills.",
+        "[sre/custom-skills] custom skills unavailable; continuing without them. Check that EVE_DATA_DIR is writable to enable custom skills.",
         { error: result.reason, scope },
       );
     }
