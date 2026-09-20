@@ -1,6 +1,11 @@
 import { createClient } from "redis";
 
-type RedisClient = ReturnType<typeof createClient>;
+// Inferred from the call rather than from `createClient` itself: the bare
+// function's return type is the fully generic client, which a client built
+// from a plain `{ url }` is not assignable to.
+const createRedisClient = (url: string) => createClient({ url });
+
+type RedisClient = ReturnType<typeof createRedisClient>;
 
 type LimitOptions = {
   readonly key: string;
@@ -26,7 +31,7 @@ function getRedisUrl() {
 
 function getRedis(url: string) {
   if (!connection) {
-    const client = createClient({ url });
+    const client = createRedisClient(url);
 
     // A dropped connection must not become an unhandled rejection; the next
     // call reconnects through a fresh promise.
