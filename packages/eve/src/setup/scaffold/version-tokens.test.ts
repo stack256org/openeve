@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CONNECT_PACKAGE_VERSION,
   DEFAULT_MICROSANDBOX_PACKAGE_VERSION,
+  formatEveDependencySpecifier,
   resolveVersionToken,
 } from "./version-tokens.js";
 
@@ -57,5 +58,23 @@ describe("resolveVersionToken", () => {
     expect(() => resolveVersionToken("somePackageVersion", "__UNKNOWN_VERSION__")).toThrow(
       /unstamped version token \(somePackageVersion=__UNKNOWN_VERSION__\)/,
     );
+  });
+});
+
+describe("formatEveDependencySpecifier", () => {
+  it("installs a plain version under the published alias", () => {
+    expect(formatEveDependencySpecifier("0.63.0")).toBe("npm:@stack256org/openeve@^0.63.0");
+  });
+
+  it("aliases a prerelease version too", () => {
+    expect(formatEveDependencySpecifier("1.0.0-beta.2")).toBe(
+      "npm:@stack256org/openeve@^1.0.0-beta.2",
+    );
+  });
+
+  it("leaves a caller-supplied specifier untouched", () => {
+    for (const specifier of ["workspace:*", "file:../eve.tgz", "^0.63.0", "npm:eve@latest"]) {
+      expect(formatEveDependencySpecifier(specifier)).toBe(specifier);
+    }
   });
 });

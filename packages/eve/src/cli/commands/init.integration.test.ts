@@ -488,7 +488,7 @@ describe("runInitCommand", () => {
       DEFAULT_AGENT_MODEL_ID,
     );
     const manifest = await readFile(join(projectPath, "package.json"), "utf8");
-    expect(manifest).toContain('"eve": "^0.6.0"');
+    expect(manifest).toContain('"eve": "npm:@stack256org/openeve@^0.6.0"');
     const packageJson: unknown = JSON.parse(manifest);
     expect(packageJson).not.toHaveProperty("overrides");
     expect(packageJson).not.toHaveProperty("resolutions");
@@ -851,7 +851,7 @@ describe("runInitCommand", () => {
       overrides?: unknown;
       resolutions?: unknown;
     };
-    expect(projectPackageJson.dependencies.eve).toBe("^0.6.0");
+    expect(projectPackageJson.dependencies.eve).toBe("npm:@stack256org/openeve@^0.6.0");
     expect(projectPackageJson.engines).toBeUndefined();
     expect(projectPackageJson.overrides).toBeUndefined();
     expect(projectPackageJson.resolutions).toBeUndefined();
@@ -942,7 +942,7 @@ describe("runInitCommand", () => {
       overrides?: unknown;
       resolutions?: unknown;
     };
-    expect(projectPackageJson.dependencies.eve).toBe("^0.6.0");
+    expect(projectPackageJson.dependencies.eve).toBe("npm:@stack256org/openeve@^0.6.0");
     expect(projectPackageJson.dependencies.next).toBe("16.0.0");
     expect(projectPackageJson.engines).toBeUndefined();
     expect(projectPackageJson.overrides).toBeUndefined();
@@ -1079,7 +1079,9 @@ describe("runInitCommand", () => {
     expect(await readFile(join(projectPath, "next.config.ts"), "utf8")).toContain(
       "export default withEve(nextConfig);",
     );
-    expect(await readFile(join(projectPath, "package.json"), "utf8")).toContain('"eve": "^0.6.0"');
+    expect(await readFile(join(projectPath, "package.json"), "utf8")).toContain(
+      '"eve": "npm:@stack256org/openeve@^0.6.0"',
+    );
     expect(deps.runPackageManagerInstall).toHaveBeenCalledWith(
       "pnpm",
       projectPath,
@@ -1144,7 +1146,7 @@ describe("runInitCommand", () => {
     // A node engine is declared so Vercel builds on a supported Node rather
     // than a stale dashboard pin.
     expect(JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"))).toMatchObject({
-      dependencies: { ai: "7.0.0", eve: "^0.6.0", zod: "^3.25.0" },
+      dependencies: { ai: "7.0.0", eve: "npm:@stack256org/openeve@^0.6.0", zod: "^3.25.0" },
       engines: { node: "24.x" },
     });
     // No Vercel dependency is declared up front; the Connect branch of a
@@ -1315,7 +1317,7 @@ describe("runInitCommand", () => {
         DEFAULT_AGENT_MODEL_ID,
       );
       expect(JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"))).toMatchObject({
-        dependencies: { eve: "^0.6.0" },
+        dependencies: { eve: "npm:@stack256org/openeve@^0.6.0" },
       });
       // The workspace policy is pnpm configuration; it must not leak into
       // projects owned by other managers.
@@ -1384,7 +1386,7 @@ describe("runInitCommand", () => {
     const projectPackageJson = JSON.parse(
       await readFile(join(projectRoot, "package.json"), "utf8"),
     ) as { dependencies: Record<string, string>; engines?: unknown };
-    expect(projectPackageJson.dependencies.eve).toBe("^0.6.0");
+    expect(projectPackageJson.dependencies.eve).toBe("npm:@stack256org/openeve@^0.6.0");
     expect(projectPackageJson.engines).toBeUndefined();
     expect(JSON.parse(await readFile(join(workspaceRoot, "package.json"), "utf8"))).toMatchObject({
       engines: { node: "24.x" },
@@ -1580,7 +1582,7 @@ describe("runInitCommand", () => {
 
     await expect(pathExists(join(projectRoot, "agent/agent.ts"))).resolves.toBe(true);
     expect(JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"))).toMatchObject({
-      dependencies: { eve: "^0.6.0" },
+      dependencies: { eve: "npm:@stack256org/openeve@^0.6.0" },
     });
     expect(output.messages.join("\n")).toContain("Updated existing project:");
     expect(output.messages.join("\n")).toContain("Created agent/agent.ts");

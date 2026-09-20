@@ -6,7 +6,7 @@ import type { NodeEngineOverride } from "../../node-engine.js";
 import type { AgentReasoningDefinition } from "../../../shared/agent-definition.js";
 import { pathExists, writeTextFile } from "../files.js";
 import { patchPackageJson, type PackageJsonPatch } from "../update/package-json.js";
-import { resolveVersionToken } from "../version-tokens.js";
+import { formatEveDependencySpecifier, resolveVersionToken } from "../version-tokens.js";
 import {
   applyPackageManagerWorkspaceConfiguration,
   isPackageManagerWorkspaceMember,
@@ -17,7 +17,6 @@ import {
   DEFAULT_AI_PACKAGE_VERSION,
   DEFAULT_CONNECT_PACKAGE_VERSION,
   DEFAULT_ZOD_PACKAGE_VERSION,
-  formatEveDependencySpecifier,
   resolveEvePackageContract,
   type EvePackageContract,
 } from "./project.js";

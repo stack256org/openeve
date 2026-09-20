@@ -8,7 +8,11 @@ import { parseChatGptModelSelection } from "../../../shared/chatgpt-model.js";
 import { SUPPORTED_AUTHORED_MODULE_FILE_EXTENSIONS } from "../update/module-files.js";
 import { pathExists, writeTextFile } from "../files.js";
 import { blockingCreateInPlaceEntries } from "../create-in-place.js";
-import { DEFAULT_CONNECT_PACKAGE_VERSION, resolveVersionToken } from "../version-tokens.js";
+import {
+  DEFAULT_CONNECT_PACKAGE_VERSION,
+  formatEveDependencySpecifier,
+  resolveVersionToken,
+} from "../version-tokens.js";
 import {
   applyPackageManagerWorkspaceConfiguration,
   isPackageManagerWorkspaceMember,
@@ -144,12 +148,6 @@ function renderTemplate(content: string, ctx: TemplateContext): string {
     .replaceAll("__EVE_INIT_TYPESCRIPT_VERSION__", ctx.typescriptPackageVersion)
     .replaceAll("__EVE_INIT_TYPES_NODE_VERSION__", ctx.nodeTypesVersion)
     .replaceAll("__EVE_INIT_NODE_ENGINE__", ctx.nodeEngine);
-}
-
-export function formatEveDependencySpecifier(versionOrSpecifier: string): string {
-  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z-.]+)?$/.test(versionOrSpecifier)
-    ? `^${versionOrSpecifier}`
-    : versionOrSpecifier;
 }
 
 const BASE_AGENT_TEMPLATE = `import { defineAgent } from "eve";

@@ -776,7 +776,7 @@ describe("ensureChannel", () => {
     const projectPackageJson = JSON.parse(
       await readFile(join(projectRoot, "package.json"), "utf8"),
     ) as { engines?: unknown; dependencies: Record<string, string> };
-    expect(projectPackageJson.dependencies.eve).toBe("^0.25.0");
+    expect(projectPackageJson.dependencies.eve).toBe("npm:@stack256org/openeve@^0.25.0");
     expect(projectPackageJson.engines).toBeUndefined();
     expect(JSON.parse(await readFile(join(workspaceRoot, "package.json"), "utf8"))).toMatchObject({
       engines: { node: "24.x" },
@@ -1120,7 +1120,7 @@ describe("scaffoldBaseProject", () => {
     expect(readme).toContain("## Deploy on Vercel");
     expect(readme).not.toContain("__EVE_INIT_");
     const packageJson = await readFile(join(projectRoot, "package.json"), "utf8");
-    expect(packageJson).toContain('"eve": "^0.25.0"');
+    expect(packageJson).toContain('"eve": "npm:@stack256org/openeve@^0.25.0"');
     // A scaffold runs on any host, so it declares no Vercel dependency. The
     // Connect branch of a channel or connection setup adds @vercel/connect
     // when it is actually chosen.
@@ -1201,7 +1201,7 @@ describe("scaffoldBaseProject", () => {
       });
 
       await expect(readFile(join(projectRoot, "package.json"), "utf8")).resolves.toContain(
-        '"eve": "^0.25.0"',
+        '"eve": "npm:@stack256org/openeve@^0.25.0"',
       );
       await expect(readFile(join(projectRoot, "README.md"), "utf8")).resolves.toContain("eve dev");
       await expect(pathExists(join(projectRoot, "pnpm-workspace.yaml"))).resolves.toBe(
@@ -1261,7 +1261,7 @@ describe("scaffoldBaseProject", () => {
       overrides?: unknown;
       resolutions?: unknown;
     };
-    expect(projectPackageJson.dependencies.eve).toBe("^0.25.0");
+    expect(projectPackageJson.dependencies.eve).toBe("npm:@stack256org/openeve@^0.25.0");
     expect(projectPackageJson.engines).toBeUndefined();
     expect(projectPackageJson.overrides).toBeUndefined();
     expect(projectPackageJson.resolutions).toBeUndefined();

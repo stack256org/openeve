@@ -158,3 +158,20 @@ export function resolveVersionToken(field: string, value: string): string {
   resolvedTokens.set(value, resolved);
   return resolved;
 }
+
+/**
+ * The scoped name open-eve publishes under. Scaffolded projects keep importing
+ * from `eve/...`, so the dependency is installed under that alias.
+ */
+const PUBLISHED_PACKAGE_NAME = "@stack256org/openeve";
+
+/**
+ * Returns the `dependencies.eve` value a scaffolded project should declare. A
+ * caller that already passed a full specifier — a workspace protocol, a tarball
+ * path — knows what it wants and is left alone.
+ */
+export function formatEveDependencySpecifier(versionOrSpecifier: string): string {
+  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z-.]+)?$/.test(versionOrSpecifier)
+    ? `npm:${PUBLISHED_PACKAGE_NAME}@^${versionOrSpecifier}`
+    : versionOrSpecifier;
+}

@@ -6,7 +6,11 @@ import { appendEnv } from "../../append-env.js";
 import type { PackageManagerKind } from "../../package-manager.js";
 import { pinnedNodeEngineMajor, type NodeEngineOverride } from "../../node-engine.js";
 import { pathExists, writeTextFile } from "../files.js";
-import { DEFAULT_CONNECT_PACKAGE_VERSION, resolveVersionToken } from "../version-tokens.js";
+import {
+  DEFAULT_CONNECT_PACKAGE_VERSION,
+  formatEveDependencySpecifier,
+  resolveVersionToken,
+} from "../version-tokens.js";
 import {
   applyPackageManagerWorkspaceConfiguration,
   isPackageManagerWorkspaceMember,
@@ -226,12 +230,6 @@ async function ensurePackageDependency(
       scripts: [],
     },
   ];
-}
-
-function formatEveDependencySpecifier(versionOrSpecifier: string): string {
-  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z-.]+)?$/.test(versionOrSpecifier)
-    ? `^${versionOrSpecifier}`
-    : versionOrSpecifier;
 }
 
 async function patchWebPackageJson(
