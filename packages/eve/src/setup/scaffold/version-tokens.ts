@@ -50,6 +50,10 @@ const TOKEN_SOURCES: Readonly<Record<string, TokenSource>> = {
 // imports, so the shared package-name constant cannot be reused here.
 const EVE_PACKAGE_NAME = "eve";
 
+// The scoped name the framework is published under. Scaffolded projects keep
+// importing from `eve/...`, so the dependency is installed under that alias.
+const PUBLISHED_PACKAGE_NAME = "@stack256org/openeve";
+
 // Published tarballs ship only bin/ and dist/ (package.json `files`), so the
 // stamp script's presence next to the package marks a dev checkout. Without
 // this gate an unstamped *publish* running inside a consumer's pnpm workspace
@@ -64,7 +68,9 @@ function findEvePackageRoot(): string | undefined {
     const packageJsonPath = join(directory, "package.json");
     if (existsSync(packageJsonPath)) {
       const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { name?: unknown };
-      if (packageJson.name === EVE_PACKAGE_NAME) return directory;
+      if (packageJson.name === EVE_PACKAGE_NAME || packageJson.name === PUBLISHED_PACKAGE_NAME) {
+        return directory;
+      }
     }
     const parent = dirname(directory);
     if (parent === directory) return undefined;
@@ -158,12 +164,6 @@ export function resolveVersionToken(field: string, value: string): string {
   resolvedTokens.set(value, resolved);
   return resolved;
 }
-
-/**
- * The scoped name open-eve publishes under. Scaffolded projects keep importing
- * from `eve/...`, so the dependency is installed under that alias.
- */
-const PUBLISHED_PACKAGE_NAME = "@stack256org/openeve";
 
 /**
  * Returns the `dependencies.eve` value a scaffolded project should declare. A

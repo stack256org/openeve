@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { EVE_PACKAGE_NAME } from "#internal/package-name.js";
+import { EVE_PACKAGE_NAME, isEvePackageName } from "#internal/package-name.js";
 
 let cachedPackageInfo: InstalledPackageInfo | undefined;
 let cachedPackageLocation: PackageLocation | undefined;
@@ -70,7 +70,7 @@ const require = createRequire(resolveCurrentModulePath());
 function tryResolveVerifiedPackageRoot(packageJsonPath: string): string | undefined {
   try {
     const canonicalPackageJsonPath = realpathSync.native(packageJsonPath);
-    const packageInfo = tryReadInstalledPackageInfo(canonicalPackageJsonPath, EVE_PACKAGE_NAME);
+    const packageInfo = tryReadInstalledPackageInfo(canonicalPackageJsonPath);
 
     return packageInfo === undefined ? undefined : dirname(canonicalPackageJsonPath);
   } catch {
@@ -303,15 +303,12 @@ function normalizeInstalledPackageInfo(value: unknown): InstalledPackageInfo | u
   };
 }
 
-function tryReadInstalledPackageInfo(
-  packageJsonPath: string,
-  expectedPackageName: string,
-): InstalledPackageInfo | undefined {
+function tryReadInstalledPackageInfo(packageJsonPath: string): InstalledPackageInfo | undefined {
   const resolvedPackageInfo = normalizeInstalledPackageInfo(
     JSON.parse(readFileSync(packageJsonPath, "utf8")),
   );
 
-  if (resolvedPackageInfo?.name !== expectedPackageName) {
+  if (!isEvePackageName(resolvedPackageInfo?.name)) {
     return undefined;
   }
 
@@ -330,7 +327,7 @@ export function resolveInstalledPackageInfo(): InstalledPackageInfo {
   const packageRootInfo =
     packageRoot === undefined
       ? undefined
-      : tryReadInstalledPackageInfo(join(packageRoot, "package.json"), EVE_PACKAGE_NAME);
+      : tryReadInstalledPackageInfo(join(packageRoot, "package.json"));
 
   if (packageRootInfo) {
     cachedPackageInfo = packageRootInfo;
@@ -339,10 +336,7 @@ export function resolveInstalledPackageInfo(): InstalledPackageInfo {
 
   try {
     const resolvedPackageJsonPath = require.resolve(`${EVE_PACKAGE_NAME}/package.json`);
-    const resolvedPackageInfo = tryReadInstalledPackageInfo(
-      resolvedPackageJsonPath,
-      EVE_PACKAGE_NAME,
-    );
+    const resolvedPackageInfo = tryReadInstalledPackageInfo(resolvedPackageJsonPath);
 
     if (resolvedPackageInfo) {
       cachedPackageInfo = resolvedPackageInfo;
