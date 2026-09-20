@@ -53,11 +53,15 @@ const objectPath = (key: string): string => join(dataDirectory(), "objects", key
 const isMissing = (error: unknown): boolean =>
   (error as NodeJS.ErrnoException | null)?.code === "ENOENT";
 
+// Inferred from the call rather than from `readdir` itself: the bare function's
+// return type resolves to its last overload, whose entries carry Buffer names.
+const readEntries = (directory: string) => readdir(directory, { withFileTypes: true });
+
 /** Recursively lists file keys under `directory`, relative to the objects root. */
 async function listKeys(directory: string, relative: string): Promise<string[]> {
-  let entries: Awaited<ReturnType<typeof readdir>>;
+  let entries: Awaited<ReturnType<typeof readEntries>>;
   try {
-    entries = await readdir(directory, { withFileTypes: true });
+    entries = await readEntries(directory);
   } catch (error) {
     if (isMissing(error)) {
       return [];
