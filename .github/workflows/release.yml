@@ -1,8 +1,10 @@
 name: Release
 
+# Upstream's release: publishes `eve` to npm and pushes sandbox images to
+# Vercel's registries. This fork can do neither, so the push trigger is removed
+# and .github/workflows/publish-openeve.yml releases instead. Kept on disk,
+# unedited below this point, so upstream merges stay mechanical.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Queue runs instead of cancelling: aborting a run mid-`changeset publish`

@@ -1,0 +1,95 @@
+name: Publish open-eve
+
+# Upstream's Release workflow publishes `eve` to npm and pushes sandbox images
+# to Vercel's registries, neither of which this fork can do. This replaces it.
+#
+# Every push to main publishes packages/eve when its version is not on npm yet,
+# then opens (or updates) a "Version open-eve" pull request applying the pending
+# changesets. Merging that pull request bumps the version, which is what makes
+# the next run publish. An ordinary merge publishes nothing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Queue runs instead of cancelling: interrupting a publish can leave npm with a
+# version the repository has no tag for.
+concurrency:
+  group: publish-openeve
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: `changeset version` walks back to the commit that
+          # added each changeset.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check whether this version is already on npm
+        id: version
+        run: |
+          set -euo pipefail
+
+          version="$(jq -er '.version' packages/eve/package.json)"
+          echo "version=${version}" >>"$GITHUB_OUTPUT"
+
+          if npm view "@stack256org/openeve@${version}" version >/dev/null 2>&1; then
+            echo "publish=false" >>"$GITHUB_OUTPUT"
+            echo "@stack256org/openeve@${version} is already published; nothing to do."
+          else
+            echo "publish=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.version.outputs.publish == 'true'
+        run: node ./scripts/publish-openeve.mjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag the release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release create "openeve@${VERSION}" \
+            --title "open-eve ${VERSION}" \
+            --notes "Published to npm as [@stack256org/openeve@${VERSION}](https://www.npmjs.com/package/@stack256org/openeve/v/${VERSION})." \
+            --target "${GITHUB_SHA}" \
+            --latest
+
+      # Last, so the version bump it writes cannot reach the publish above: that
+      # bump is a proposal until its pull request merges.
+      - name: Open or update the version pull request
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          version-script: pnpm version-packages
+          title: "chore: version open-eve"
+          commit: "chore: version open-eve"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

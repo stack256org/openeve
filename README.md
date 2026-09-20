@@ -76,24 +76,32 @@ disagree, this repository's copy is the one that matches this code.
 
 ## Quick start
 
-open-eve is not published to npm, so build it from a clone:
+open-eve is on npm as [`@stack256org/openeve`](https://www.npmjs.com/package/@stack256org/openeve):
 
 ```bash
-git clone https://github.com/stack256org/openeve.git
-cd openeve
-pnpm install
-pnpm build
-```
-
-Then scaffold an agent with the CLI you just built:
-
-```bash
-node packages/eve/bin/eve.js init my-agent
+npx @stack256org/openeve init my-agent
 ```
 
 That creates a new `my-agent` directory, installs its dependencies, initializes Git, and
 starts the interactive terminal UI. Passing a path instead of a name adds eve to an
 existing project.
+
+The generated `package.json` installs the framework under the `eve` alias, which is what
+keeps every `import ... from "eve/..."` working:
+
+```json
+"dependencies": { "eve": "npm:@stack256org/openeve@^0.63.0" }
+```
+
+Adding it to a project by hand takes the same form — a bare `npm install eve` installs
+upstream eve instead:
+
+```bash
+npm install eve@npm:@stack256org/openeve@latest ai zod
+```
+
+To work on open-eve itself rather than build an agent with it, clone the repository and
+follow [CONTRIBUTING.md](CONTRIBUTING.md).
 
 `init` writes an AI Gateway model ID into `agent/agent.ts`, which routes through Vercel.
 Replace it with a provider object to keep model calls on infrastructure you control — see
@@ -169,6 +177,10 @@ belong upstream, in [eve's discussions](https://github.com/vercel/eve/discussion
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) to get the repo
 running locally and land a change. By participating, you agree to our
 [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Releases are automated: merging to `main` opens a version pull request, and merging
+that publishes `@stack256org/openeve` to npm. [CONTRIBUTING.md](CONTRIBUTING.md#releases)
+has the details.
 
 Changes that are not about removing the Vercel dependency belong upstream in
 [vercel/eve](https://github.com/vercel/eve), so everyone gets them. This fork merges

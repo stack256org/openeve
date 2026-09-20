@@ -213,7 +213,30 @@ on when one exists. Do not create an issue solely to accompany a pull request.
 6. Open the PR with a short description that explains the problem, user need,
    or decision behind the change before describing the solution.
 
-Releases are managed with [Changesets](https://github.com/changesets/changesets) by the maintainers.
+## Releases
+
+Releases run from [`.github/workflows/publish-openeve.yml`](./.github/workflows/publish-openeve.yml)
+and need no manual step. Every push to `main` opens or updates a
+**chore: version open-eve** pull request that applies the pending
+[Changesets](https://github.com/changesets/changesets). Merging that pull
+request bumps the version in `packages/eve/package.json`, and the run it
+triggers publishes `@stack256org/openeve` to npm and creates the matching
+GitHub release. A merge that does not change the version publishes nothing.
+
+The workflow needs one repository secret, `NPM_TOKEN` — an npm Granular Access
+token with write access to the `stack256org` scope. Automation tokens bypass
+two-factor authentication, which interactive publishing requires.
+
+Publishing by hand takes the same path:
+
+```bash
+pnpm publish:openeve
+```
+
+That script builds under the repository name `eve`, renames the manifest to
+`@stack256org/openeve` for the upload only, and restores it afterwards. The
+rename cannot happen before the build: the package self-references `eve/...`
+in `src/self-modification/`, which only resolves while the manifest says `eve`.
 
 ## Developer Certificate of Origin (DCO)
 
