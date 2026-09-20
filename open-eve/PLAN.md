@@ -60,7 +60,7 @@ Ten work items. Two spec items are deferred, each for a stated reason:
 
 Proves the thesis. Nothing else starts until `openeve build && openeve start` runs with no `@vercel/*` reachable at runtime.
 
-### Task 1: SQLite store
+### Task 1: SQLite store — DONE (`751c90c46`)
 
 **Files:**
 
@@ -222,7 +222,7 @@ git add packages/eve/src/internal/storage
 git commit -s -m "feat(open-eve): add the shared SQLite store behind data/openeve.db"
 ```
 
-### Task 2: `sqlite()` memory backend
+### Task 2: `sqlite()` memory backend — DONE (`79c9cdf0b`)
 
 **Files:**
 
@@ -420,7 +420,7 @@ git add packages/eve/src/public/memory/file
 git commit -s -m "feat(open-eve): add the sqlite() file-memory backend"
 ```
 
-### Task 3: Make `sqlite()` the default backend off Vercel
+### Task 3: Make `sqlite()` the default backend off Vercel — DONE (`a89605520`)
 
 **Files:**
 
@@ -486,7 +486,7 @@ git add packages/eve/src/public/memory/file/backends/default.ts packages/eve/src
 git commit -s -m "feat(open-eve): default file memory to sqlite() off Vercel"
 ```
 
-### Task 4: Host provider — the `agent.ts` field and its resolver
+### Task 4: Host provider — the `agent.ts` field and its resolver — DONE (`584161889`)
 
 **Files:**
 
@@ -619,7 +619,7 @@ git add packages/eve/src packages/eve/package.json
 git commit -s -m "feat(open-eve): add the host provider field and resolver"
 ```
 
-### Task 5: Flip the call sites to `resolveHostProvider()`
+### Task 5: Flip the call sites to `resolveHostProvider()` — DONE (`76399ab78`)
 
 **Files:** the 19 executable sites, one line each. The 2 doc-comment mentions (`sandbox/backends/default.ts:31`, `shared/sandbox-definition.ts:89`) are prose updates only.
 
@@ -670,30 +670,70 @@ git add packages/eve/src
 git commit -s -m "feat(open-eve): resolve the host through resolveHostProvider()"
 ```
 
-### Task 6: Zero-Vercel runtime guard
+### Task 6: Zero-Vercel runtime guard — DONE (`38b377d93`)
 
 **Files:**
 
 - Create: `packages/eve/scripts/check-no-vercel-runtime.mjs`
-- Modify: `packages/eve/package.json` — add `"check:no-vercel-runtime"` and chain it into `build`
+- Modify: `packages/eve/package.json` — `check:no-vercel-runtime`, chained into `build` after `build:js`
 
-A separate script, modelled on `scripts/check-bin-runtime-dependencies.mjs`, so `scripts/guard-invariants.mjs` stays at zero fork divergence. This is the mechanical enforcement of the project's core promise: it fails the build if any `@vercel/*` specifier is reachable from the default runtime entrypoint.
+**The plan's premise here was wrong, and the correction matters.** This task was
+written as "fail the build if any `@vercel/*` specifier is reachable at runtime".
+No such specifier exists. eve's only runtime `dependencies` are `nitro` and
+`undici`; every `@vercel/*` package is a `devDependency` whose code is **vendored**
+into the repository and imported as `#compiled/@vercel/*`. A guard looking for
+bare specifiers would have passed on day one and proved nothing.
 
-- [ ] **Step 1: Write the script**
+The real invariant is about the vendored copies: **no module reachable from the
+self-hosted runtime may statically import `#compiled/@vercel/*`.** A static import
+loads the code at import time, so a VPS deployment that authored no Vercel
+anything still had the Blob client, the OIDC reader, and the `@vercel/otel`
+registrar resident in memory.
 
-Walk the built runtime output with the same `loadNitroRolldownParseAst` helper `check-bin-runtime-dependencies.mjs` uses, collect every bare import specifier, and exit non-zero listing any whose `packageName()` starts with `@vercel/`. Skip files under the gated Vercel host path, which are only reachable when `host: vercel()` is authored.
+Ten modules imported vendored Vercel code statically; five were runtime-reachable
+and are now lazy:
 
-- [ ] **Step 2: Prove it catches a violation**
+| module                                       | package | how it loads now                                                                                |
+| -------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `public/agents/auth.ts`                      | oidc    | `readVercelOidcToken()` wrapper, dynamic import                                                 |
+| `internal/nitro/routes/info.ts`              | oidc    | same wrapper                                                                                    |
+| `internal/model-auth/gateway-credential.ts`  | oidc    | same wrapper                                                                                    |
+| `public/memory/file/backends/vercel-blob.ts` | blob    | dynamic import inside the async `read`/`write`                                                  |
+| `tracing/otel-registration.ts`               | otel    | `loadRegisterOTel()` in `tracing/vercel-otel.ts`, `require` because registration is synchronous |
 
-Temporarily add `import "@vercel/blob";` to a runtime module, run the script, confirm it exits non-zero and names the file. Revert.
+Three more moved to the wrapper so they stopped needing an allowance at all
+(`execution/sandbox/bindings/vercel-credentials.ts`,
+`services/dev-client/request-headers.ts`,
+`setup/flows/model-login-connection.ts`). Two are allowed by name with a written
+reason: `cli/agent-detection.js` (CLI only) and `public/sandbox/vercel.js`
+(reachable only through an explicit `eve/sandbox/vercel` import).
 
-- [ ] **Step 3: Wire into build and commit**
+The script allows dynamic `import()` and type-only imports, and it also fails when
+an allowance stops being needed, so the list keeps naming real exceptions rather
+than accumulating stale ones.
 
-```bash
-pnpm --filter eve run build
-git add packages/eve/scripts/check-no-vercel-runtime.mjs packages/eve/package.json
-git commit -s -m "feat(open-eve): fail the build when @vercel/* is reachable at runtime"
-```
+Verified red-to-green: adding a static `#compiled/@vercel/blob` import back to a
+built runtime module exits non-zero and names the module.
+
+### Task 6b: Bind the authored host to the call sites — DONE (`7b6a9c18f`)
+
+**Not in the original plan, and Milestone 1 does not hold without it.** Tasks 4
+and 5 left the `host` field inert: it compiled into the manifest and resolved out
+of it, but all fourteen call sites called `resolveHostProvider()` with no
+argument, so every one still resolved purely from `process.env.VERCEL`.
+
+Runtime call sites are deep utilities with no definition in scope, and some fire
+outside any request, so parameter threading was not available. The host now
+travels the way the agent-scoped Workflow queue namespace already does: the
+generated compiled-artifacts bootstrap calls `installHostProvider()` once at cold
+start. Resolution order is explicit argument, then installed host, then
+environment; an unrecognized installed value is ignored.
+
+Build-time sites cannot use that channel, since the bootstrap they generate has
+not run yet. The three holding the manifest in the calling frame pass it
+explicitly. `writeOptionalApplicationBuildProfile`'s `target` label still reads
+the environment, because no manifest reaches that frame — a profile label, not a
+behavior switch.
 
 **Milestone 1 exit criteria:** `openeve build && openeve start` completes on a clean checkout with no Vercel environment, `check:no-vercel-runtime` passes, and a real agent turn succeeds.
 
