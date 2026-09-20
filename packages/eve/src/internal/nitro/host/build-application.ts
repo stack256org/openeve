@@ -287,7 +287,8 @@ async function buildApplicationInWorkspace(
   const preparedHost = await measureBuildPhase(profiler, "host.prepare", () =>
     prepareProductionApplicationHost(workspace),
   );
-  const isVercelBuild = resolveHostProvider() === "vercel";
+  const isVercelBuild =
+    resolveHostProvider(preparedHost.compileResult.manifest.config.host) === "vercel";
 
   const servicePrefix = isVercelBuild
     ? await measureBuildPhase(profiler, "vercel.service-prefix.resolve", () =>

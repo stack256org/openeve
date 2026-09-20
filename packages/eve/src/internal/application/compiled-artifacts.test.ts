@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createBootstrapProcessInstallLines,
   createDevelopmentWorkflowWorldPluginSource,
   createWorkflowWorldPluginSource,
 } from "#internal/application/compiled-artifacts.js";
@@ -81,5 +82,30 @@ describe("createDevelopmentWorkflowWorldPluginSource", () => {
 
     expect(source).toContain('import * as workflowWorldModule from "@acme/eve-world";');
     expect(source).toContain("await workflowWorld.start?.();");
+  });
+});
+
+describe("createBootstrapProcessInstallLines", () => {
+  it("installs an authored host so runtime call sites resolve it without the environment", () => {
+    const self = createBootstrapProcessInstallLines({ agentName: "weather", host: "self" });
+    const vercel = createBootstrapProcessInstallLines({ agentName: "weather", host: "vercel" });
+
+    expect(self).toContain('installHostProvider("self");');
+    expect(vercel).toContain('installHostProvider("vercel");');
+  });
+
+  it("installs nothing when no host is authored, leaving the environment in charge", () => {
+    const lines = createBootstrapProcessInstallLines({ agentName: "weather", host: undefined });
+
+    expect(lines).toContain("installHostProvider(undefined);");
+  });
+
+  it("imports both installers before calling them", () => {
+    const lines = createBootstrapProcessInstallLines({ agentName: "weather", host: "self" });
+    const importedAt = lines.findIndex((line) => line.includes("installHostProvider }"));
+    const calledAt = lines.findIndex((line) => line.startsWith("installHostProvider("));
+
+    expect(importedAt).toBeGreaterThanOrEqual(0);
+    expect(calledAt).toBeGreaterThan(importedAt);
   });
 });

@@ -9,7 +9,7 @@ import {
   writeCompiledArtifactsFiles,
   writeDevelopmentCompiledArtifactsFiles,
 } from "#internal/application/compiled-artifacts.js";
-import { resolveHostProvider } from "#internal/host/provider.js";
+import { resolveHostProvider, type HostProviderDefinition } from "#internal/host/provider.js";
 import {
   discardDevelopmentGeneration,
   stageDevelopmentGeneration,
@@ -121,7 +121,7 @@ export async function prepareProductionApplicationHost(
 
   const compiledArtifacts = await writeCompiledArtifactsFiles({
     compileResult,
-    defaultWorkflowWorld: resolveProductionWorkflowWorldTarget(),
+    defaultWorkflowWorld: resolveProductionWorkflowWorldTarget(compileResult.manifest.config.host),
     outDir: workspace.host.artifactsDir,
   });
 
@@ -149,8 +149,10 @@ function createPreparedApplicationHost(input: {
   };
 }
 
-function resolveProductionWorkflowWorldTarget(): BuiltInWorkflowWorldTarget {
-  if (resolveHostProvider() === "vercel") {
+function resolveProductionWorkflowWorldTarget(
+  host: HostProviderDefinition | undefined,
+): BuiltInWorkflowWorldTarget {
+  if (resolveHostProvider(host) === "vercel") {
     return "vercel";
   }
 
