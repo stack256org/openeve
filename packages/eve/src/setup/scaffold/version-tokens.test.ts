@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CONNECT_PACKAGE_VERSION,
   DEFAULT_MICROSANDBOX_PACKAGE_VERSION,
+  declaresUpstreamEve,
   formatEveDependencySpecifier,
+  formatUpstreamEveDependencyWarning,
   resolveVersionToken,
 } from "./version-tokens.js";
 
@@ -76,5 +78,36 @@ describe("formatEveDependencySpecifier", () => {
     for (const specifier of ["workspace:*", "file:../eve.tgz", "^0.63.0", "npm:eve@latest"]) {
       expect(formatEveDependencySpecifier(specifier)).toBe(specifier);
     }
+  });
+});
+
+describe("declaresUpstreamEve", () => {
+  it("flags a bare registry range", () => {
+    for (const specifier of ["^0.63.0", "0.63.0", "~0.63.0", "*", "latest"]) {
+      expect(declaresUpstreamEve(specifier)).toBe(true);
+    }
+  });
+
+  it("flags an alias that points back at upstream", () => {
+    expect(declaresUpstreamEve("npm:eve@^0.63.0")).toBe(true);
+  });
+
+  it("accepts the open-eve alias", () => {
+    expect(declaresUpstreamEve("npm:@stack256org/openeve@^0.63.2")).toBe(false);
+  });
+
+  it("says nothing about a specifier that bypasses the registry", () => {
+    for (const specifier of ["workspace:*", "file:../eve.tgz", "link:../eve", "github:o/r"]) {
+      expect(declaresUpstreamEve(specifier)).toBe(false);
+    }
+  });
+});
+
+describe("formatUpstreamEveDependencyWarning", () => {
+  it("names the specifier to replace it with", () => {
+    const warning = formatUpstreamEveDependencyWarning("^0.63.0", "0.63.2");
+
+    expect(warning).toContain('"eve": "^0.63.0"');
+    expect(warning).toContain("npm:@stack256org/openeve@^0.63.2");
   });
 });

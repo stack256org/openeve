@@ -251,6 +251,19 @@ Start by editing \`agent/instructions.md\` to define the agent's identity, purpo
 
 Add capabilities under \`agent/\`, including tools, connections, channels, skills, subagents, and schedules. eve reloads your changes as you work.
 
+## Two names, one framework
+
+\`package.json\` installs the framework under an alias:
+
+\`\`\`json
+"eve": "__EVE_INIT_PACKAGE_VERSION__"
+\`\`\`
+
+open-eve publishes as \`@stack256org/openeve\`, and the alias keeps the name on the
+left \`eve\` so every \`import ... from "eve/..."\` resolves. Leave that line as it
+is — a plain \`"eve": "^x.y.z"\` installs a different framework, Vercel's eve,
+with no error to notice.
+
 ## Learn more
 
 To learn more about eve, explore these resources:

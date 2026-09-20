@@ -175,3 +175,31 @@ export function formatEveDependencySpecifier(versionOrSpecifier: string): string
     ? `npm:${PUBLISHED_PACKAGE_NAME}@^${versionOrSpecifier}`
     : versionOrSpecifier;
 }
+
+// Specifier prefixes that resolve somewhere other than the registry entry for
+// the declared name, so they say nothing about which framework is installed.
+const NON_REGISTRY_PROTOCOL = /^(?:workspace|file|link|portal|git|git\+[a-z]+|github|https?):/u;
+
+/**
+ * Whether a declared `eve` dependency resolves to upstream's package.
+ *
+ * open-eve is installed under the `eve` alias, so the specifier is what
+ * distinguishes the two — the dependency key is `eve` either way. A bare
+ * registry range therefore installs upstream, silently, with no error to
+ * notice.
+ */
+export function declaresUpstreamEve(specifier: string): boolean {
+  const value = specifier.trim();
+  const aliasedName = /^npm:(@[^/]+\/[^@]+|[^@]+)/u.exec(value)?.[1];
+  if (aliasedName !== undefined) return aliasedName === EVE_PACKAGE_NAME;
+  return !NON_REGISTRY_PROTOCOL.test(value) && !value.includes("/");
+}
+
+/** Explains a dependency that names `eve` but installs upstream's package. */
+export function formatUpstreamEveDependencyWarning(specifier: string, version: string): string {
+  return (
+    `package.json declares "eve": "${specifier}", which installs the upstream eve package, ` +
+    `not open-eve. Replace it with "${formatEveDependencySpecifier(version)}". The dependency ` +
+    'key stays `eve`, so every import from "eve/..." keeps resolving.'
+  );
+}

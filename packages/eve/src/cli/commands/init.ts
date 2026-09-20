@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rename, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rename, rm } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
@@ -31,6 +31,11 @@ import {
   spawnPackageManager,
 } from "#setup/primitives/index.js";
 import { addAgentToProject } from "#setup/scaffold/create/add-to-project.js";
+import { resolveEvePackageContract } from "#setup/scaffold/create/project.js";
+import {
+  declaresUpstreamEve,
+  formatUpstreamEveDependencyWarning,
+} from "#setup/scaffold/version-tokens.js";
 import { ensureChannel, scaffoldBaseProject } from "#setup/scaffold/index.js";
 import { WizardCancelledError } from "#setup/step.js";
 import { validateModelSlug } from "#setup/flows/model-source-change.js";
@@ -494,6 +499,39 @@ async function runInitSteps(input: {
   }
 }
 
+/**
+ * Warns when the target already declares an `eve` dependency that installs
+ * upstream's package.
+ *
+ * open-eve installs under the `eve` alias, so the dependency key is `eve`
+ * either way and only the specifier tells them apart. Everything downstream
+ * treats a declared `eve` as proof this is an eve project, so without this the
+ * command scaffolds open-eve's files onto upstream's framework, or fails
+ * somewhere further in with an error that says nothing about the cause.
+ */
+async function warnOnUpstreamEveDependency(
+  logger: InitCliLogger,
+  projectRoot: string,
+): Promise<void> {
+  let packageJson: unknown;
+  try {
+    packageJson = JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"));
+  } catch {
+    return;
+  }
+  if (typeof packageJson !== "object" || packageJson === null) return;
+  const dependencies = (packageJson as { dependencies?: unknown }).dependencies;
+  if (typeof dependencies !== "object" || dependencies === null) return;
+  const specifier = (dependencies as Record<string, unknown>)["eve"];
+  if (typeof specifier !== "string" || !declaresUpstreamEve(specifier)) return;
+
+  logger.log(
+    pc.yellow(
+      `⚠ ${formatUpstreamEveDependencyWarning(specifier, resolveEvePackageContract().version)}`,
+    ),
+  );
+}
+
 export async function runInitCommand(
   logger: InitCliLogger,
   parentDirectory: string,
@@ -507,6 +545,7 @@ export async function runInitCommand(
   const interactive = dependencies.hasInteractiveTerminal();
   if (interactive && !agentLaunched) logger.log("");
   logger.log(eveCliBanner());
+  await warnOnUpstreamEveDependency(logger, resolve(parentDirectory, target ?? "."));
 
   trackStep?.("resolve_target");
   let result: InitResult;

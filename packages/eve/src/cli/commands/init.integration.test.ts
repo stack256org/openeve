@@ -1778,4 +1778,35 @@ describe("runInitCommand", () => {
       }
     },
   );
+
+  // The dependency key is `eve` for open-eve and for upstream alike, so a
+  // project that declares the bare range is recognized as an eve project and
+  // scaffolded onto upstream's framework, with nothing to notice.
+  it("warns when the target declares the upstream eve package", async () => {
+    const parentDirectory = await mkdtemp(join(tmpdir(), "eve-init-upstream-"));
+    const projectRoot = await createHostProject(parentDirectory, {
+      name: "host-app",
+      dependencies: { eve: "^0.63.0" },
+    });
+    const output = logger();
+
+    await runInitCommand(output, projectRoot, ".", {}, dependencies()).catch(() => undefined);
+
+    const printed = output.messages.join("\n");
+    expect(printed).toContain('"eve": "^0.63.0"');
+    expect(printed).toContain("npm:@stack256org/openeve@^");
+  });
+
+  it("stays quiet when the target declares the open-eve alias", async () => {
+    const parentDirectory = await mkdtemp(join(tmpdir(), "eve-init-aliased-"));
+    const projectRoot = await createHostProject(parentDirectory, {
+      name: "host-app",
+      dependencies: { eve: "npm:@stack256org/openeve@^0.63.2" },
+    });
+    const output = logger();
+
+    await runInitCommand(output, projectRoot, ".", {}, dependencies()).catch(() => undefined);
+
+    expect(output.messages.join("\n")).not.toContain("installs the upstream eve package");
+  });
 });
