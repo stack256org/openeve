@@ -6,4 +6,5 @@ export {
   type MemoryDocumentWriteInput,
 } from "#public/memory/file/backend.js";
 export { inMemory } from "#public/memory/file/backends/in-memory.js";
+export { sqlite, type SqliteMemoryBackendOptions } from "#public/memory/file/backends/sqlite.js";
 export { fileMemory, type FileMemoryOptions } from "#public/memory/file/provider.js";
