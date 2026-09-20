@@ -182,6 +182,11 @@ jobs:
 
   test-tui:
     runs-on: ubuntu-latest
+    # The smoke scripts drive a real agent turn, so they need a model
+    # credential. open-eve forks have no reason to hold one; skip rather than
+    # fail every run with "AI Gateway received no credentials". Set
+    # AI_GATEWAY_API_KEY as a repository secret to switch the job on.
+    if: ${{ secrets.AI_GATEWAY_API_KEY != '' }}
     env:
       AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
 
