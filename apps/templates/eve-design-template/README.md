@@ -4,8 +4,6 @@ A Slack design agent that answers from your approved design guidelines.
 
 > Experimental: this template uses Eve preview APIs pinned to `0.27.3`.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?env=ANTHROPIC_API_KEY%2CSLACK_BOT_TOKEN%2CSLACK_SIGNING_SECRET&envDescription=Your%20Anthropic%20API%20key%2C%20plus%20the%20bot%20token%20and%20signing%20secret%20from%20your%20Slack%20app.&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Feve-design-template%2Fblob%2Fmain%2Fdocs%2Fslack-setup.md&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Feve-design-template%2Ftree%2Fmain)
-
 ## What it does
 
 - Answers Slack DMs.
@@ -23,7 +21,8 @@ Each DM or top-level mention starts a conversation. Continue in its reply thread
 
 You need:
 
-- A Node.js 24 host that can serve HTTPS. Any VPS, container platform, or Vercel.
+- A Node.js 24 host that can serve HTTPS. Any VPS or container platform.
+- A Docker daemon reachable from that host. The design corpus is served from a Docker sandbox container, so the daemon has to be running wherever the agent runs, in development and in production. Change the backend in `agent/sandbox/sandbox.ts` if your host cannot provide one.
 - An Anthropic API key.
 - Permission to create a Slack app in your workspace.
 - A design owner and their Slack member ID.
@@ -69,7 +68,7 @@ The corpus is bundled at build time. Runtime conversations and attachments never
 
 ## Develop
 
-Requires Node.js 24 and pnpm 10.
+Requires Node.js 24, pnpm 10, and a running Docker daemon.
 
 ```bash
 pnpm install
@@ -97,7 +96,7 @@ Set `DESIGN_AGENT_MODEL` to override the default model, `claude-sonnet-4.6`. The
 
 ## Runtime safety
 
-The agent can read and search only its bundled corpus. Shell, file writes, web access, delegation, todo management, and sandbox network access are disabled. Slack is its only integration.
+The agent can read and search only its bundled corpus, which is seeded into a local Docker sandbox container started with networking disabled. Shell, file writes, web access, delegation, and todo management are disabled. Slack is its only integration.
 
 ## License
 
