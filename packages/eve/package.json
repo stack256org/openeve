@@ -20,14 +20,14 @@
     "vercel",
     "workflow"
   ],
-  "homepage": "https://github.com/vercel/eve#readme",
+  "homepage": "https://github.com/stack256org/openeve#readme",
   "bugs": {
-    "url": "https://github.com/vercel/eve/issues"
+    "url": "https://github.com/stack256org/openeve/issues"
   },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vercel/eve.git",
+    "url": "git+https://github.com/stack256org/openeve.git",
     "directory": "packages/eve"
   },
   "bin": {
