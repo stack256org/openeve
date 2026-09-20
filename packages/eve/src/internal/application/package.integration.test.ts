@@ -152,4 +152,21 @@ describe("resolvePackageLocationFromModulePath", () => {
       ),
     ).toThrowError(`Failed to resolve the eve package root from "${bundlePath}".`);
   });
+
+  // An alias install puts the published name in the manifest while the
+  // directory and every import specifier still read `eve`.
+  it("resolves the package when it is installed under the eve alias", async () => {
+    const appRoot = await createScratchDirectory("eve-package-location-alias-");
+    await writePackageManifest(appRoot, "consumer-app");
+    const packageRoot = join(appRoot, "node_modules", "eve");
+    await writePackageManifest(packageRoot, "@stack256org/openeve");
+    await mkdir(join(packageRoot, "dist"), { recursive: true });
+    const bundlePath = await writeBundle(appRoot);
+    const canonicalPackageRoot = canonicalize(packageRoot);
+
+    expect(resolvePackageLocationFromModulePath(bundlePath)).toEqual({
+      packageBuildRoot: join(canonicalPackageRoot, "dist"),
+      packageRoot: canonicalPackageRoot,
+    });
+  });
 });

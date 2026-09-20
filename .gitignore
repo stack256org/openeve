@@ -67,3 +67,6 @@ Thumbs.db
 .vercel
 .env*.local
 .env*
+
+# Local CLI validation scratch; never committed.
+demo/

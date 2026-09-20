@@ -3,7 +3,11 @@ import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { EVE_PACKAGE_NAME, isEvePackageName } from "#internal/package-name.js";
+import {
+  canonicalEvePackageName,
+  EVE_PACKAGE_NAME,
+  isEvePackageName,
+} from "#internal/package-name.js";
 
 let cachedPackageInfo: InstalledPackageInfo | undefined;
 let cachedPackageLocation: PackageLocation | undefined;
@@ -298,7 +302,11 @@ function normalizeInstalledPackageInfo(value: unknown): InstalledPackageInfo | u
   }
 
   return {
-    name: packageJson.name,
+    // Callers use this name as an identity, not as a label: durable workflow
+    // ids are built from it, and the bundler registers those workflows under
+    // the import specifier. An alias install would put the published name on
+    // one side and `eve` on the other, and every workflow lookup would miss.
+    name: canonicalEvePackageName(packageJson.name),
     version: packageJson.version,
   };
 }
