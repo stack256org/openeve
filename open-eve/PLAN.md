@@ -735,7 +735,27 @@ explicitly. `writeOptionalApplicationBuildProfile`'s `target` label still reads
 the environment, because no manifest reaches that frame — a profile label, not a
 behavior switch.
 
-**Milestone 1 exit criteria:** `openeve build && openeve start` completes on a clean checkout with no Vercel environment, `check:no-vercel-runtime` passes, and a real agent turn succeeds.
+**Milestone 1 exit criteria — measured 2026-09-20 on `apps/fixtures/weather-agent`,
+with `VERCEL`, `VERCEL_ENV`, `VERCEL_OIDC_TOKEN`, and `BLOB_READ_WRITE_TOKEN` all
+unset:**
+
+| criterion                        | result                                                        |
+| -------------------------------- | ------------------------------------------------------------- |
+| `eve build` completes            | yes, exit 0                                                   |
+| `eve start` completes            | yes, `HTTP 200` on `/`, Docker sandbox template built locally |
+| `check:no-vercel-runtime` passes | yes                                                           |
+| a real agent turn succeeds       | **not proven**                                                |
+
+The built server bundle is the direct evidence for the headline claim. It contains
+no `@vercel/blob`, no `@vercel/otel`, and no `@vercel/sandbox` chunk at all: with
+nothing importing them statically, the bundler drops them. One `vercel__oidc.mjs`
+chunk survives, reachable only through `await import("../_8.mjs")` from the AI SDK
+gateway module, which loads it solely to authenticate against Vercel AI Gateway.
+
+The agent turn is unproven for a reason unrelated to hosting: `POST /eve/v1/session`
+answers `401 unauthorized`, and no model-provider credential is available on the
+machine this was measured on. The server is live and enforcing authorization;
+finishing this check needs a model credential and a configured principal.
 
 ---
 
