@@ -1,4 +1,13 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { defineAgent } from "eve";
+
+/**
+ * Anthropic called directly with its own API key, so no gateway sits in the request path.
+ *
+ * @remarks
+ * Reads `ANTHROPIC_API_KEY`.
+ */
+const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
  * Fresh-context draft-review subagent.
@@ -25,7 +34,7 @@ export default defineAgent({
     "before it goes to the user. The caller passes the full draft plus the target platform " +
     "and any voice or audience context in the message; the reviewer loads its own rubric " +
     "and returns a verdict with concrete issues.",
-  model: "anthropic/claude-fable-5",
+  model: anthropic("claude-fable-5"),
   outputSchema: {
     additionalProperties: false,
     properties: {

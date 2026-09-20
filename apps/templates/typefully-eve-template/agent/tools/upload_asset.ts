@@ -1,106 +1,95 @@
-import { put } from "@vercel/blob";
+import { writeFile } from "node:fs/promises";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import {
+  assetContentType,
+  assetPath,
+  ensureAssetDirectory,
+  MAX_ASSET_KEY_LENGTH,
+} from "#lib/assets.js";
 import { isReservedUserPath, USER_PREFERENCES_PREFIX } from "#lib/user-preferences.js";
 
 /**
- * Tool that uploads text or binary content to Vercel Blob storage.
+ * Tool that stores text or binary content in the agent's asset directory.
  *
  * @remarks
- * Authorization resolves from the ambient Vercel credentials — the project's OIDC token
- * (`VERCEL_OIDC_TOKEN`, or the `x-vercel-oidc-token` request header on Vercel) — so no
- * `BLOB_READ_WRITE_TOKEN` is required and no token is passed in code. Binary content (images,
- * PDFs) is supplied base64-encoded with `isBase64: true`.
+ * Assets live under `<EVE_DATA_DIR>/assets`, so they survive restarts and move with that one
+ * directory. The key is model-supplied, so it is validated against an anchored pattern before any
+ * path is built. Binary content is supplied base64-encoded with `isBase64: true`, and the key's
+ * extension determines the content type.
  */
 export default defineTool({
   description:
-    "Upload text or binary content to Vercel Blob storage and return its URL. Use when the " +
-    "user wants to save or publish an asset, such as an exported draft or an image, to durable storage.",
+    "Store text or binary content as a durable asset and return its key. Use when the user wants " +
+    "to save an asset, such as an exported draft or an image. The key is a relative path with an " +
+    'extension, e.g. "drafts/launch-post.md"; the extension sets the content type.',
   /**
-   * Upload the content to Blob storage.
+   * Write the content to the assets directory.
    *
    * @param input - Validated tool input.
-   * @returns The asset's `url`, `downloadUrl`, stored `pathname`, and `contentType`, or
-   * `success: false` with an `error` message.
+   * @returns The stored `key`, its `contentType`, and the byte `size`, or `success: false` with
+   * an `error` message.
    */
-  async execute({
-    pathname,
-    content,
-    contentType,
-    isBase64,
-    access,
-    addRandomSuffix,
-    allowOverwrite,
-  }) {
-    if (isReservedUserPath(pathname)) {
+  async execute({ key, content, isBase64, allowOverwrite }) {
+    if (isReservedUserPath(key)) {
       return {
-        contentType: contentType ?? "unknown",
-        downloadUrl: "",
+        contentType: assetContentType(key),
         error: `"${USER_PREFERENCES_PREFIX}" is reserved: use save_user_preferences instead.`,
-        pathname,
+        key,
         success: false,
-        url: "",
+      };
+    }
+    const path = assetPath(key);
+    if (!path) {
+      return {
+        contentType: assetContentType(key),
+        error: "That key is not a valid asset key. Use a relative path such as drafts/post.md.",
+        key,
+        success: false,
       };
     }
     try {
-      const body = isBase64 ? Buffer.from(content, "base64") : content;
-      const blob = await put(pathname, body, {
-        access: access ?? "public",
-        addRandomSuffix: addRandomSuffix ?? false,
-        allowOverwrite: allowOverwrite ?? false,
-        contentType,
-      });
+      const body = isBase64 ? Buffer.from(content, "base64") : Buffer.from(content, "utf8");
+      await ensureAssetDirectory(path);
+      await writeFile(path, body, { flag: allowOverwrite ? "w" : "wx" });
       return {
-        contentType: blob.contentType,
-        downloadUrl: blob.downloadUrl,
-        pathname: blob.pathname,
+        contentType: assetContentType(key),
+        key,
+        size: body.byteLength,
         success: true,
-        url: blob.url,
       };
     } catch (error) {
       return {
-        contentType: contentType ?? "unknown",
-        downloadUrl: "",
+        contentType: assetContentType(key),
         error: error instanceof Error ? error.message : "Upload failed",
-        pathname,
+        key,
         success: false,
-        url: "",
       };
     }
   },
   inputSchema: z.object({
-    access: z
-      .enum(["public", "private"])
-      .optional()
-      .describe('Access level for the asset. Defaults to "public".'),
-    addRandomSuffix: z
-      .boolean()
-      .optional()
-      .describe("Append a random suffix to avoid pathname collisions. Defaults to false."),
     allowOverwrite: z
       .boolean()
       .optional()
-      .describe("Allow overwriting an existing blob at the same pathname. Defaults to false."),
+      .describe("Allow replacing an existing asset at the same key. Defaults to false."),
     content: z.string().describe("Raw text/JSON, or base64-encoded bytes when isBase64 is true."),
-    contentType: z
-      .string()
-      .optional()
-      .describe('MIME type, e.g. "text/markdown". Inferred from the extension when omitted.'),
     isBase64: z
       .boolean()
       .optional()
       .describe("Set true when content is base64-encoded binary data. Defaults to false."),
-    pathname: z
+    key: z
       .string()
       .min(1)
-      .describe('Path and filename including extension, e.g. "drafts/launch-post.md".'),
+      .max(MAX_ASSET_KEY_LENGTH)
+      .describe(
+        'Relative path and filename including extension, e.g. "drafts/launch-post.md". Letters, digits, dots, dashes, underscores, and slashes only.',
+      ),
   }),
   outputSchema: z.object({
     contentType: z.string(),
-    downloadUrl: z.string(),
     error: z.string().optional(),
-    pathname: z.string(),
+    key: z.string(),
+    size: z.number().optional(),
     success: z.boolean(),
-    url: z.string(),
   }),
 });

@@ -1,15 +1,16 @@
-import { BRAND_CONTEXT_PREFIX } from "#lib/vercel-blob/config.js";
+import { BRAND_CONTEXT_PREFIX } from "#lib/assets/config.js";
 
 /**
  * Storage location and size bound for the team's shared brand context document.
  *
  * @remarks
- * The prefix comes from the Blob namespace registry rather than being declared here, so the asset
- * tools' guards and this module can't drift apart: if the prefix moves, the guard moves with it.
+ * The prefix comes from the asset namespace registry rather than being declared here, so the
+ * asset tools' guards and this module can't drift apart: if the prefix moves, the guard moves
+ * with it.
  */
 
 /**
- * The single Blob key backing the brand context document.
+ * The single asset key backing the brand context document.
  *
  * @remarks
  * A constant rather than a per-principal derivation, unlike user preferences: brand context

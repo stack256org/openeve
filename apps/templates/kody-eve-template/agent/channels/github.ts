@@ -1,4 +1,3 @@
-import { connectGitHubCredentials } from "@vercel/connect/eve";
 import { defaultGitHubAuth, type GitHubComment, githubChannel } from "eve/channels/github";
 
 const BOT_NAME = "Kody";
@@ -57,10 +56,9 @@ const PR_SUMMARY_TASK = [
  * "Kody", plus a summary comment on every newly opened pull request.
  *
  * @remarks
- * - Credentials are brokered by Vercel Connect. The connector UID comes from
- *   the `GITHUB_CONNECTOR` environment variable (falling back to
- *   `github/kody-agent`); tokens are resolved per call and never exposed to
- *   the model.
+ * - Credentials come from the environment: `GITHUB_APP_ID`,
+ *   `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, and `GITHUB_WEBHOOK_SECRET`.
+ *   Installation tokens are minted per call and never exposed to the model.
  * - `onComment` replaces the built-in mention gate to add an authorization
  *   check: it keeps the default mention and ignore rules, then dispatches
  *   only when the commenter's `author_association` marks them as trusted with
@@ -76,7 +74,6 @@ const PR_SUMMARY_TASK = [
  */
 export default githubChannel({
   botName: BOT_NAME,
-  credentials: connectGitHubCredentials(process.env.GITHUB_CONNECTOR ?? "github/kody-agent"),
   onComment: (ctx, comment) =>
     !isIgnoredComment(comment) && MENTION_PATTERN.test(comment.body) && isTrustedCommenter(comment)
       ? { auth: defaultGitHubAuth(ctx) }

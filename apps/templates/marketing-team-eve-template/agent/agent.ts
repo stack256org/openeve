@@ -1,4 +1,5 @@
 import { defineAgent } from "eve";
+import { MODELS } from "#lib/models/config.js";
 
 /**
  * Root agent runtime configuration.
@@ -12,5 +13,5 @@ import { defineAgent } from "eve";
  */
 export default defineAgent({
   compaction: { thresholdPercent: 0.9 },
-  model: "anthropic/claude-opus-5",
+  model: MODELS.lead,
 });

@@ -1,4 +1,3 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import {
   type SlackContext,
   type SlackEvent,
@@ -6,22 +5,6 @@ import {
   type SlackMessage,
   slackChannel,
 } from "eve/channels/slack";
-
-/**
- * Vercel Connect connector UID for the Slack app, resolved to credentials.
- *
- * @remarks
- * One source of truth for the connector, so this channel and any tool that calls the Slack Web API
- * directly share a single bot installation. The token is resolved fresh from Vercel Connect on each
- * call, so rotation is handled server-side and nothing is stored here.
- *
- * @defaultValue `"slack/marketing-team"`, the UID `vercel connect create slack --name
- * marketing-team --triggers` produces (UIDs are `<type>/<name>`). Override with the
- * `SLACK_CONNECTOR` environment variable when your connector uses a different name.
- */
-const slackCredentials = connectSlackCredentials(
-  process.env.SLACK_CONNECTOR ?? "slack/marketing-team",
-);
 
 /**
  * Builds the session auth context from an inbound Slack message.
@@ -298,22 +281,18 @@ async function setSuggestedPrompts(
  * offers suggested prompts when a conversation opens.
  *
  * @remarks
- * Credentials are brokered by Vercel Connect through the shared {@link slackCredentials}, which
- * supplies both the outbound bot token and inbound webhook verification — there are no Slack
- * secrets to manage in code. Create the connector with
- * `vercel connect create slack --name <name> --triggers`, then register this project's trigger
- * destination at `/eve/v1/slack`.
+ * Credentials come from the environment: `SLACK_BOT_TOKEN` for outbound calls and
+ * `SLACK_SIGNING_SECRET` for inbound webhook verification. Any tool that calls the Slack Web API
+ * directly reads the same pair, so the whole team shares one bot installation. Create a Slack app,
+ * install it in the workspace, and point its Event Subscriptions request URL at this project's
+ * `/eve/v1/slack`.
  *
- * {@link setSuggestedPrompts} needs three things set on that connector before it can do anything:
- * the Agents and AI Apps feature enabled, `assistant:write` under Bot Scopes, and
- * `assistant_thread_started` plus `app_home_opened` under Trigger Event Types. Without them the
- * event never arrives and the rest of the channel is unaffected.
- *
- * @defaultValue The connector UID falls back to `"slack/marketing-team"` when `SLACK_CONNECTOR` is
- * unset.
+ * {@link setSuggestedPrompts} needs three things set on that app before it can do anything: the
+ * Agents and AI Apps feature enabled, `assistant:write` under Bot Token Scopes, and
+ * `assistant_thread_started` plus `app_home_opened` under Subscribe to bot events. Without them
+ * the event never arrives and the rest of the channel is unaffected.
  */
 export default slackChannel({
-  credentials: slackCredentials,
   onAppMention: handleInbound,
   onDirectMessage: handleInbound,
   /**

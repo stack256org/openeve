@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { USER_PREFERENCES_PREFIX } from "#lib/vercel-blob/config.js";
+import { USER_PREFERENCES_PREFIX } from "#lib/assets/config.js";
 
 /**
  * Key derivation and size bound for per-user preference files.
@@ -7,8 +7,8 @@ import { USER_PREFERENCES_PREFIX } from "#lib/vercel-blob/config.js";
  * @remarks
  * Only the root agent's preference tools use this: preferences describe the person the root is
  * talking to, and specialists receive the ones that matter as constraints in their brief. The
- * prefix comes from the Blob namespace registry, which is what keeps the generic asset tools from
- * reaching these files.
+ * prefix comes from the asset namespace registry, which is what keeps the generic asset tools
+ * from reaching these files.
  */
 
 /**
@@ -33,7 +33,7 @@ type UserPrincipal =
   | undefined;
 
 /**
- * Resolve the Blob key holding the current user's preferences.
+ * Resolve the asset key holding the current user's preferences.
  *
  * @remarks
  * The key is derived entirely from the framework-resolved principal, never from model input, so a
@@ -43,7 +43,7 @@ type UserPrincipal =
  * single anonymous file.
  *
  * @param principal - The value of `ctx.session.auth.current`.
- * @returns The reserved Blob key for this user, or `null` when there is no user principal.
+ * @returns The reserved asset key for this user, or `null` when there is no user principal.
  */
 export const userPreferencesKey = (principal: UserPrincipal): string | null => {
   if (principal?.principalType !== "user" || !principal.principalId) {

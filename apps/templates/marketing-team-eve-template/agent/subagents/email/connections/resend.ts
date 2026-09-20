@@ -1,15 +1,4 @@
-import { connect } from "@vercel/connect/eve";
 import { defineMcpClientConnection } from "eve/connections";
-
-/**
- * Vercel Connect connector UID for the Resend MCP server.
- *
- * @defaultValue `"resend/marketing-team"` — the UID `vercel connect create resend
- * --name marketing-team` produces (UIDs are `<type>/<name>`)
- * Override with the `RESEND_CONNECTOR` environment variable when your connector uses a different
- * name.
- */
-const resendConnector = process.env.RESEND_CONNECTOR ?? "resend/marketing-team";
 
 /**
  * Bare Resend MCP tool names this agent is allowed to discover.
@@ -125,28 +114,24 @@ const DESTRUCTIVE_TOOLS = [
  * Resend connection (MCP) exposing campaign, list, and delivery tools to the model.
  *
  * @remarks
- * Authorization is user-scoped via Vercel Connect: each user signs in through their own browser
- * consent flow, the per-user token is resolved before every tool call, and it is never exposed to
- * the model. The connector only issues `user` tokens, so there is no app-scoped variant to fall
- * back on and the session needs a resolved principal before the first call.
- *
- * User scoping is worth more here than on the other connections. Sending is the one action this
- * team takes that cannot be undone, and a per-user token means Resend records who sent it rather
- * than attributing every campaign to one shared workspace credential.
+ * Authorization is a Resend API key read from `RESEND_API_KEY`. The key is resolved before every
+ * tool call and never exposed to the model. It is account-scoped rather than per-user, which is
+ * the one place this template gives something up: Resend records the send against the key rather
+ * than against the person who approved it. The approval prompt is what names that person, so keep
+ * the gates below, and mint the key with the narrowest permission Resend offers.
  *
  * The discoverable surface is narrowed to {@link ALLOWED_TOOLS}. Calls that send mail
  * ({@link SEND_TOOLS}) or that cannot be undone ({@link DESTRUCTIVE_TOOLS}) pause for an
  * approve or deny decision before they run.
  *
  * @see {@link https://resend.com/docs/mcp-server | Resend MCP server}
- * @see {@link https://vercel.com/docs/connect | Vercel Connect}
  */
 export default defineMcpClientConnection({
   approval: ({ toolName }) =>
     [...SEND_TOOLS, ...DESTRUCTIVE_TOOLS].some((tool) => toolName.includes(tool))
       ? "user-approval"
       : "not-applicable",
-  auth: connect(resendConnector),
+  auth: { getToken: async () => ({ token: process.env.RESEND_API_KEY! }) },
   description:
     "Resend: build and send email campaigns. Create, compose, and send broadcasts to a segment; " +
     "create, compose, publish, and duplicate reusable templates with {{{VARIABLE}}} placeholders; " +

@@ -1,4 +1,13 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { defineAgent } from "eve";
+
+/**
+ * Anthropic called directly with its own API key, so no gateway sits in the request path.
+ *
+ * @remarks
+ * Reads `ANTHROPIC_API_KEY`.
+ */
+const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
  * Root agent runtime configuration.
@@ -15,5 +24,5 @@ export default defineAgent({
     maxInputTokensPerSession: 500_000,
     maxOutputTokensPerSession: 20_000,
   },
-  model: "anthropic/claude-sonnet-5",
+  model: anthropic("claude-sonnet-5"),
 });

@@ -11,7 +11,7 @@ A map of how this agent is put together, for humans and AI agents working in the
 
 ## Overview
 
-A Slack-based social media agent built on the [eve](https://eve.dev) agent framework. Users @mention it to run their social presence: drafting posts and threads, scheduling and managing the publishing queue, uploading media, and reading analytics across X, LinkedIn, Threads, Bluesky, and Mastodon, all through Typefully's MCP server as the signed-in user. Briefs and source material come from Notion, where long-form pieces are also drafted; generated files and assets live in Vercel Blob. The agent runs on Vercel, the same way locally (`eve dev`) and in production (`eve deploy`).
+A Slack-based social media agent built on the [eve](https://eve.dev) agent framework. Users @mention it to run their social presence: drafting posts and threads, scheduling and managing the publishing queue, uploading media, and reading analytics across X, LinkedIn, Threads, Bluesky, and Mastodon, all through Typefully's MCP server as the signed-in user. Briefs and source material come from Notion, where long-form pieces are also drafted; generated files and assets live on the local filesystem under `EVE_DATA_DIR`. The agent runs the same way locally (`eve dev`) and in production, on any host with Node 24.
 
 eve discovers every capability from the filesystem under `agent/`. There is no central registry or wiring file: a tool's name is its filename, a connection's name is its filename, and so on.
 
@@ -22,30 +22,31 @@ agent/
   agent.ts                  # model configuration (defineAgent): compaction + session token limits
   instructions.md           # base system prompt / behavior
   channels/
-    slack.ts                # Slack surface; credentials via Vercel Connect
+    slack.ts                # Slack surface; SLACK_BOT_TOKEN + SLACK_SIGNING_SECRET
     eve.ts                  # inbound route auth; dev-only localDevUser shim (user principal)
   connections/
     typefully.ts            # Typefully MCP server, static API key (TYPEFULLY_API_KEY); deletes and scheduling approval-gated
     notion.ts               # Notion MCP server, user-scoped OAuth; update/move tools approval-gated
-  sandbox.ts                # sandbox backend (Vercel Sandbox)
+  sandbox.ts                # sandbox backend (Docker)
   schedules/
     weekly-analytics.ts     # Monday cron: pull Typefully analytics, post a digest to Slack
   subagents/
     researcher/             # agent.ts + instructions.md; fresh-context web researcher (web tools only)
     reviewer/               # agent.ts + instructions.md + own skills/writing-quality copy + sandbox.ts
   tools/
-    upload_asset.ts         # Vercel Blob: store text/binary
-    list_assets.ts          # Vercel Blob: browse
-    get_asset_info.ts       # Vercel Blob: metadata
-    download_asset.ts       # Vercel Blob: read back (Blob URLs only)
-    delete_asset.ts         # Vercel Blob: delete (approval-gated)
-    get_user_preferences.ts   # Blob: load this user's saved preferences
-    save_user_preferences.ts  # Blob: save standing preferences (principal-scoped)
-    clear_user_preferences.ts # Blob: clear this user's preferences (approval-gated)
+    upload_asset.ts         # asset store: write text/binary
+    list_assets.ts          # asset store: browse
+    get_asset_info.ts       # asset store: metadata
+    download_asset.ts       # asset store: read back (validated keys only)
+    delete_asset.ts         # asset store: delete (approval-gated)
+    get_user_preferences.ts   # load this user's saved preferences
+    save_user_preferences.ts  # save standing preferences (principal-scoped)
+    clear_user_preferences.ts # clear this user's preferences (approval-gated)
     lint_against_style.ts   # check a draft against the target platform's banned-words list
     post_analytics_report.ts  # post the weekly analytics digest to a fixed Slack channel (callSlackApi)
   lib/
-    user-preferences.ts     # principal-scoped Blob key + reserved-prefix guard (shared helper)
+    assets.ts               # data directory, anchored key validation, content types
+    user-preferences.ts     # principal-scoped asset key + reserved-prefix guard (shared helper)
   skills/                   # load-on-demand procedures, routed by description frontmatter
     writing-quality/              # generic prose quality: AI-tells + plain-English references
     x-style/                      # X voice, hooks, threads, specs, banned words
@@ -65,8 +66,8 @@ agent/
 | Skills              | `agent/skills/<name>/`                                                               | Skill            | Task-specific guidance (per-platform social craft, writing quality), loaded on demand                                                                                                                                                                                         |
 | Typefully access    | `agent/connections/typefully.ts`                                                     | Connection (MCP) | List social sets, create/edit/read drafts, schedule posts, manage the queue, upload media, and read post and follower analytics; deletes always require approval, and create/edit require it only when `publish_at` is set                                                    |
 | Notion access       | `agent/connections/notion.ts`                                                        | Connection (MCP) | Search/read/write Notion as the signed-in user; update/move tools are approval-gated, page creation is not                                                                                                                                                                    |
-| Asset tools         | `agent/tools/{upload,list,get_asset_info,download,delete}_asset.ts`                  | Tools            | Store and manage files in Vercel Blob                                                                                                                                                                                                                                         |
-| User preferences    | `agent/tools/{get,save,clear}_user_preferences.ts` + `agent/lib/user-preferences.ts` | Tools            | Per-user standing preferences in Blob, keyed to the resolved principal (never model input)                                                                                                                                                                                    |
+| Asset tools         | `agent/tools/{upload,list,get_asset_info,download,delete}_asset.ts`                  | Tools            | Store and manage files under `EVE_DATA_DIR/assets`, addressed by validated keys                                                                                                                                                                                               |
+| User preferences    | `agent/tools/{get,save,clear}_user_preferences.ts` + `agent/lib/user-preferences.ts` | Tools            | Per-user standing preferences on disk, keyed to the resolved principal (never model input)                                                                                                                                                                                    |
 | Style lint          | `agent/tools/lint_against_style.ts`                                                  | Tool             | Deterministic banned-words check on a draft; reads `references/banned-words.json` from the matching `*-style` skill via `ctx.getSkill`, with the surface constrained to a fixed enum                                                                                          |
 | Analytics digest    | `agent/schedules/weekly-analytics.ts` + `agent/tools/post_analytics_report.ts`       | Schedule + Tool  | Monday cron runs the agent to pull Typefully post and follower analytics and post two Slack `data_table` blocks (with a fixed-width text fallback) to the channel in `TYPEFULLY_ANALYTICS_CHANNEL` via `callSlackApi`; the tool's destination is env-fixed, never model input |
 | Researcher subagent | `agent/subagents/researcher/`                                                        | Subagent         | Fresh-context web research for facts the source material doesn't hold; uses framework `web_search`/`web_fetch`, returns cited findings + gaps                                                                                                                                 |
@@ -77,38 +78,39 @@ Channels and the connections are I/O boundaries. Tools run in the app runtime (f
 ## Data stores
 
 - **Typefully** (external, user-owned): where drafts, the publishing queue, media, tags, and analytics live. All access goes through Typefully's MCP server, authenticated with a static API key read from the `TYPEFULLY_API_KEY` environment variable — one shared workspace credential, resolved per connection attempt and never exposed to the model.
-- **Notion** (external, user-owned): the source for briefs and reference material and the destination for long-form drafts. Per-user OAuth, no shared credential.
-- **Vercel Blob**: object storage for exported drafts, images, and attachments. Authenticated by the project's OIDC token (no `BLOB_READ_WRITE_TOKEN`). Also holds per-user preferences under the reserved `user-preferences/<hashed-principal>.md` prefix, reachable only through the principal-scoped preference tools.
-- **Vercel Sandbox** (`/workspace/skills/...`): holds the seeded skill files the model reads. The reviewer subagent declares its own `sandbox.ts` because subagent sandboxes don't inherit from the root. Not a durable application data store.
+- **Notion** (external, user-owned): the source for briefs and reference material and the destination for long-form drafts. One workspace integration token, shared by every user of the agent.
+- **The asset store** (`<EVE_DATA_DIR>/assets`, defaulting to `./data/assets`): exported drafts, images, and attachments, addressed by key. Also holds per-user preferences under the reserved `user-preferences/<hashed-principal>.md` prefix, reachable only through the principal-scoped preference tools. Back up that one directory and the agent's whole durable state moves with it.
+- **The sandbox** (`/workspace/skills/...`): holds the seeded skill files the model reads. The reviewer subagent declares its own `sandbox.ts` because subagent sandboxes don't inherit from the root. Not a durable application data store.
 
 There is no application database.
 
 ## External integrations
 
-| Integration       | Purpose                                                 | Method                                                                                                                                                             |
-| ----------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Slack             | Chat surface (inbound events + outbound messages)       | Vercel Connect connector (`SLACK_CONNECTOR`), webhook trigger at `/eve/v1/slack`                                                                                   |
-| Typefully (MCP)   | Draft, schedule, and manage social posts and analytics  | MCP connection to `mcp.typefully.com` with a static API key (`TYPEFULLY_API_KEY`, sent as a Bearer token via `getToken`)                                           |
-| Notion (MCP)      | Read briefs and source material, write long-form drafts | MCP connection to `mcp.notion.com` with user-scoped OAuth via Vercel Connect (`NOTION_CONNECTOR`)                                                                  |
-| Vercel Blob       | File/asset storage                                      | `@vercel/blob`, OIDC-authenticated                                                                                                                                 |
-| Vercel AI Gateway | Model access                                            | Gateway model ids resolved through the linked project; the root model is set in `agent/agent.ts` and each subagent sets its own in `agent/subagents/<id>/agent.ts` |
-| Vercel Sandbox    | Isolated runtime that holds seeded skill files          | `agent/sandbox.ts` and the reviewer's own `sandbox.ts` (`vercel()` backend)                                                                                        |
+| Integration       | Purpose                                                 | Method                                                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slack             | Chat surface (inbound events + outbound messages)       | `SLACK_BOT_TOKEN` + `SLACK_SIGNING_SECRET`, with the app's request URL at `/eve/v1/slack`                                                                                                                               |
+| Typefully (MCP)   | Draft, schedule, and manage social posts and analytics  | MCP connection to `mcp.typefully.com` with a static API key (`TYPEFULLY_API_KEY`, sent as a Bearer token via `getToken`)                                                                                                |
+| Notion (MCP)      | Read briefs and source material, write long-form drafts | MCP connection to `mcp.notion.com` with a workspace integration token (`NOTION_API_KEY`)                                                                                                                                |
+| Local filesystem  | File/asset storage                                      | `node:fs/promises` under `EVE_DATA_DIR`, via `agent/lib/assets.ts`                                                                                                                                                      |
+| Anthropic, OpenAI | Model access                                            | `@ai-sdk/anthropic` and `@ai-sdk/openai` called directly, reading `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`; the root model is set in `agent/agent.ts` and each subagent sets its own in `agent/subagents/<id>/agent.ts` |
+| Docker            | Isolated runtime that holds seeded skill files          | `agent/sandbox.ts` and the reviewer's own `sandbox.ts` (`docker()` backend)                                                                                                                                             |
 
 ## Deployment & infrastructure
 
-- **Platform:** Vercel. Deploy with `eve deploy` (wraps `vercel deploy --prod`); the raw `vercel deploy` cannot auto-detect the eve framework.
-- **Connectors:** provisioned via the Deploy button or `vercel connect create` + `attach`; the Slack trigger must point at `/eve/v1/slack`.
-- **Environment:** `SLACK_CONNECTOR` and `NOTION_CONNECTOR` (connector UIDs), `TYPEFULLY_API_KEY` (the Typefully API key), and `TYPEFULLY_ANALYTICS_CHANNEL` (the Slack channel id the weekly digest posts to) in the Vercel project; the model and Blob authenticate via the project's OIDC token.
-- **Schedules:** each `defineSchedule` under `agent/schedules/` becomes a Vercel Cron Job evaluated in UTC. `weekly-analytics` fires Mondays at 14:00 UTC; adjust the cron for your timezone. `eve dev` never fires schedules on their cadence, so trigger a run out of band with `curl -X POST http://localhost:3000/eve/v1/dev/schedules/weekly-analytics`.
-- **Local development:** `pnpm dev` runs the same runtime in a TUI; `vercel env pull` supplies a short-lived OIDC token. The Slack surface only runs against a deployment.
+- **Platform:** any host that runs Node 24 and can reach a Docker daemon. `pnpm build` produces the deployable bundle.
+- **Slack app:** install it in the workspace and point Event Subscriptions at `<your-host>/eve/v1/slack`.
+- **Environment:** `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `TYPEFULLY_API_KEY`, `TYPEFULLY_ANALYTICS_CHANNEL`, `NOTION_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and optionally `EVE_DATA_DIR`. `.env.example` lists all of them.
+- **Storage:** `EVE_DATA_DIR` (default `./data`) must be writable and should outlive the process, so mount a volume rather than relying on a container's filesystem.
+- **Schedules:** each `defineSchedule` under `agent/schedules/` runs on its cron expression, evaluated in UTC. `weekly-analytics` fires Mondays at 14:00 UTC; adjust the cron for your timezone. `eve dev` never fires schedules on their cadence, so trigger a run out of band with `curl -X POST http://localhost:3000/eve/v1/dev/schedules/weekly-analytics`.
+- **Local development:** `pnpm dev` runs the same runtime in a TUI, reading `.env.local`. The Slack surface needs a public URL, so use a tunnel or a deployment to exercise it.
 
 ## Security considerations
 
-- **Inbound route auth** (`agent/channels/eve.ts`): `[localDevUser, vercelOidc()]` rejects public browser traffic; Slack traffic is authenticated by its connector, which issues a per-user (`principalType: "user"`) principal. `localDevUser` defers the trust decision to the framework's `localDev()` and only upgrades the resolved dev principal to a user, so user-scoped connections work from the dev TUI without affecting production.
-- **Outbound auth:** Typefully authenticates with a static API key read from `TYPEFULLY_API_KEY` via `getToken`; Notion is per-user OAuth via Vercel Connect (credentials resolved per call, never exposed to the model); Blob uses the project OIDC token. No credentials live in code, and `.env*` is gitignored.
+- **Inbound route auth** (`agent/channels/eve.ts`): `localDevUser` plus HTTP Basic, and the Basic credential is only registered when `EVE_API_PASSWORD` is set, so an unset variable leaves the route closed rather than accepting an empty password. Slack traffic is authenticated by the channel's signing secret and carries a per-user (`principalType: "user"`) principal. `localDevUser` defers the trust decision to the framework's `localDev()` and only upgrades the resolved dev principal to a user, so the principal-scoped preference tools work from the dev TUI without affecting production.
+- **Outbound auth:** Typefully and Notion each authenticate with a static token read from the environment inside `getToken` (`TYPEFULLY_API_KEY`, `NOTION_API_KEY`), resolved per call and never exposed to the model. Both are workspace-scoped rather than per-user, so scope each token to what the agent actually needs. No credentials live in code, and `.env*` is gitignored except `.env.example`.
 - **Human-in-the-loop:** irreversible tool actions (`delete_asset`, `clear_user_preferences`) are gated with `approval` from `eve/tools/approval`. The Typefully connection always gates its delete tools (`typefully_delete_draft`, `typefully_delete_comment`, `typefully_delete_thread`) and gates `typefully_create_draft` / `typefully_edit_draft` only when `requestBody.publish_at` is set, so plain drafting never prompts but scheduling and publishing do. The Notion connection gates its update/move tools (`notion-update-pages`, `notion-move-pages`, `notion-update-data-source`, `notion-update-view`). Each renders as a Slack approve/deny button.
-- **Input hardening:** `download_asset` only fetches `*.blob.vercel-storage.com` URLs (prevents SSRF, since the `url` is model-supplied). The Typefully approval policy reads `requestBody.publish_at` defensively (`readPublishAt`) without trusting the model-supplied input shape.
-- **Per-user isolation:** the preference tools derive their Blob key from the resolved principal (`ctx.session.auth.current`), never from model input, so a session can only touch its own user's file; the id is hashed so the stored path carries no raw identifier. The general asset tools refuse the reserved `user-preferences/` prefix so they can't be used as a side channel. The Blob store is provisioned public, so preferences are scoped, not strongly confidential — use a private store if that matters.
+- **Input hardening:** asset keys are model-supplied and become real paths, so `agent/lib/assets.ts` matches every key against an anchored pattern and refuses anything else before a path is built; `../` and a leading slash never reach a `join`, and an invalid key is reported exactly like a missing file. No tool fetches a model-supplied URL, so there is no SSRF surface to allow-list. The Typefully approval policy reads `requestBody.publish_at` defensively (`readPublishAt`) without trusting the model-supplied input shape.
+- **Per-user isolation:** the preference tools derive their key from the resolved principal (`ctx.session.auth.current`), never from model input, so a session can only touch its own user's file; the id is hashed so the stored path carries no raw identifier. The general asset tools refuse the reserved `user-preferences/` prefix so they can't be used as a side channel. The files sit in the same data directory as everything else, so preferences are scoped within the agent, not encrypted at rest.
 
 ## Development & testing
 
@@ -134,5 +136,5 @@ There is no application database.
 - **Schedule:** a cron-triggered agent run authored with `defineSchedule` under `agent/schedules/`. Here: `weekly-analytics` (the Monday Typefully analytics digest).
 - **Skill:** a load-on-demand Markdown procedure; the packaged form requires `description` frontmatter used for routing. Here: `writing-quality` plus five per-platform style skills (`x-style`, `linkedin-style`, `threads-style`, `bluesky-style`, `mastodon-style`).
 - **Subagent:** a declared agent under `agent/subagents/<id>/` that the root delegates to as a tool. It runs in its own fresh child session and inherits none of the root's skills, connections, or tools, so the root passes context in the call `message`. Here: `researcher` (web research) and `reviewer` (draft review, with its own skill copy and sandbox).
-- **Vercel Connect:** brokers OAuth/credentials for Slack and Notion; connectors are identified by a UID.
-- **OIDC:** the project's Vercel identity token, used to authenticate Blob (and AI Gateway) without static keys.
+- **Asset key:** the identifier for a stored file, a relative path such as `drafts/post.md`. Validated against an anchored pattern in `agent/lib/assets.ts` before it becomes a real path.
+- **`EVE_DATA_DIR`:** the single directory holding everything durable the agent writes, defaulting to `./data`.

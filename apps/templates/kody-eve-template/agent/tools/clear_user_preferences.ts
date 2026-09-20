@@ -1,17 +1,17 @@
-import { del, list } from "@vercel/blob";
+import { unlink } from "node:fs/promises";
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
+import { assetPath } from "#lib/assets.js";
 import { userPreferencesKey } from "#lib/user-preferences.js";
 
 /**
  * Tool that permanently deletes the current user's saved preferences.
  *
  * @remarks
- * The Blob key is derived from the framework-resolved principal (`ctx.session.auth.current`),
- * never from model input, so a session can only ever clear its own user's preferences.
- * Deletion is irreversible, so it is gated on human approval via `always()`.
- * Authorization resolves from the ambient Vercel OIDC credentials.
+ * The key is derived from the framework-resolved principal (`ctx.session.auth.current`), never
+ * from model input, so a session can only ever clear its own user's preferences. Deletion is
+ * irreversible, so it is gated on human approval via `always()`.
  */
 export default defineTool({
   approval: always(),
@@ -28,7 +28,8 @@ export default defineTool({
    */
   async execute(_input, ctx) {
     const key = userPreferencesKey(ctx.session.auth.current);
-    if (!key) {
+    const path = key ? assetPath(key) : null;
+    if (!path) {
       return {
         deleted: false,
         error: "No signed-in user to clear preferences for.",
@@ -36,14 +37,12 @@ export default defineTool({
       };
     }
     try {
-      const { blobs } = await list({ limit: 1, prefix: key });
-      const blob = blobs.find((b) => b.pathname === key);
-      if (!blob) {
-        return { deleted: false, success: true };
-      }
-      await del(blob.url);
+      await unlink(path);
       return { deleted: true, success: true };
     } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return { deleted: false, success: true };
+      }
       return {
         deleted: false,
         error: error instanceof Error ? error.message : "Failed to clear preferences",

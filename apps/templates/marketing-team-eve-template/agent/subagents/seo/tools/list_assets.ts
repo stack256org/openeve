@@ -1,3 +1,3 @@
-import { listAssetsTool } from "#lib/vercel-blob/tools.js";
+import { listAssetsTool } from "#lib/assets/tools.js";
 
 export default listAssetsTool();

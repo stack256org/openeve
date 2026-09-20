@@ -1,12 +1,10 @@
-import { connect } from "@vercel/connect/eve";
-
 /**
  * Reads a required environment variable, throwing if it is unset so
  * misconfiguration fails fast instead of surfacing mid-request.
  *
  * @remarks
- * Call it at module load when the value is needed for discovery (connector
- * UIDs, channel credentials), or inside a handler when a missing value
+ * Call it at module load when the value is needed for discovery (channel
+ * credentials, schedule targets), or inside a handler when a missing value
  * should not prevent the rest of the agent from loading.
  *
  * @param name - The environment variable name.
@@ -22,30 +20,22 @@ export function requireEnv(name: string, example: string): string {
 }
 
 /**
- * Shared Linear authorization via Vercel Connect.
+ * Shared Linear authorization.
  *
- * Single source of truth for the Linear connector so every consumer — the
+ * Single source of truth for the Linear credential so every consumer — the
  * Linear MCP connection and any tool calling the GraphQL API directly —
- * shares one Linear installation and one set of scopes.
+ * shares one installation and one set of scopes.
  *
  * @remarks
- * - App-scoped (`principalType: "app"`), so no per-user consent flow is
- *   required; tokens are minted for the installation itself.
- * - Tokens are requested per call via `ctx.getToken(linearAuth)`, cached per
- *   step by eve, and never exposed to the model.
- * - The connector UID comes from the `LINEAR_CONNECTOR` environment variable
- *   (e.g. `linear/kody-agent`); the module throws at load time if it
- *   is not set.
- *
- * @example
- * ```ts
- * const { token } = await ctx.getToken(linearAuth);
- * ```
+ * - The token comes from `LINEAR_AGENT_ACCESS_TOKEN`, the same variable the
+ *   Linear channel reads, so the agent acts as one Linear identity everywhere.
+ * - It is app-scoped: no per-user consent flow is required, and the scopes are
+ *   whatever the token was minted with (`read`, `write`, `issues:create`, and
+ *   `comments:create` cover what this agent does).
+ * - It is resolved per call and never exposed to the model, and the module
+ *   only throws once something actually asks for it.
  */
-export const linearAuth = connect({
-  connector: requireEnv("LINEAR_CONNECTOR", "linear/kody-agent"),
-  principalType: "app",
-  tokenParams: {
-    scopes: ["read", "write", "issues:create", "comments:create"],
-  },
-});
+export const linearAuth = {
+  getToken: () =>
+    Promise.resolve({ token: requireEnv("LINEAR_AGENT_ACCESS_TOKEN", "lin_oauth_123") }),
+};

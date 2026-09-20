@@ -1,4 +1,3 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import { callSlackApi } from "eve/channels/slack";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
@@ -134,8 +133,8 @@ const fallbackText = (
  * @remarks
  * Posts the digest only to the channel in `TYPEFULLY_ANALYTICS_CHANNEL`, never a model-supplied
  * channel. Renders the tables as Slack `data_table` blocks, retrying once as fixed-width text if
- * Slack rejects the blocks. The bot token comes from the Slack channel's Vercel Connect
- * credentials, so no Slack secret lives in code.
+ * Slack rejects the blocks. The bot token comes from `SLACK_BOT_TOKEN`, the same variable the
+ * Slack channel reads, so one installation serves both.
  */
 export default defineTool({
   description:
@@ -171,13 +170,10 @@ export default defineTool({
       dataTableBlock("Followers", followersTable),
     ];
     try {
-      const { botToken } = connectSlackCredentials(
-        process.env.SLACK_CONNECTOR ?? "slack/social-media-agent",
-      );
       const post = (body: Record<string, unknown>) =>
         callSlackApi({
           body: { channel, unfurl_links: false, ...body },
-          botToken,
+          botToken: undefined,
           operation: "chat.postMessage",
         });
       const withBlocks = await post({ blocks, text });

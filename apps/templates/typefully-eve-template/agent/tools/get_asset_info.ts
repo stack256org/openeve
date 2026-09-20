@@ -1,64 +1,68 @@
-import { head } from "@vercel/blob";
+import { stat } from "node:fs/promises";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { isReservedUserUrl } from "#lib/user-preferences.js";
+import { assetContentType, assetPath, MAX_ASSET_KEY_LENGTH } from "#lib/assets.js";
+import { isReservedUserPath } from "#lib/user-preferences.js";
 
 /**
- * Tool that fetches metadata for a Vercel Blob asset without downloading its content.
+ * Tool that reads an asset's metadata without reading its content.
  *
  * @remarks
- * Authorization resolves from the ambient Vercel OIDC credentials; no `BLOB_READ_WRITE_TOKEN`
- * is required. Use it to confirm an asset exists, or to check its size or content type before
- * downloading. Returns `exists: false` when the asset is not found.
+ * A key that fails validation and a key that was never stored both return `exists: false` with
+ * the same message, so a probe learns nothing from the difference. Only the reserved-prefix
+ * refusal is distinguishable, because it names the tool to use instead.
  */
 export default defineTool({
   description:
-    "Get metadata (size, content type, upload date) for a Vercel Blob asset without " +
-    "downloading it. Use to check whether an asset exists or inspect it before downloading.",
+    "Get metadata (size, content type, last-modified date) for a stored asset without reading " +
+    "it. Use to check whether an asset exists or inspect it before downloading.",
   /**
    * Look up the asset's metadata.
    *
    * @param input - Validated tool input.
    * @returns `exists: true` with the asset's metadata, or `exists: false` with an `error`.
    */
-  async execute({ url }) {
-    if (isReservedUserUrl(url)) {
+  async execute({ key }) {
+    if (isReservedUserPath(key)) {
       return {
         error: "User preferences are private: use get_user_preferences.",
         exists: false,
-        url,
+        key,
       };
     }
+    const path = assetPath(key);
+    if (!path) {
+      return { error: "Asset not found.", exists: false, key };
+    }
     try {
-      const metadata = await head(url);
+      const info = await stat(path);
+      if (!info.isFile()) {
+        return { error: "Asset not found.", exists: false, key };
+      }
       return {
-        contentType: metadata.contentType,
-        downloadUrl: metadata.downloadUrl,
+        contentType: assetContentType(key),
         exists: true,
-        pathname: metadata.pathname,
-        size: metadata.size,
-        uploadedAt: metadata.uploadedAt.toISOString(),
-        url: metadata.url,
+        key,
+        modifiedAt: info.mtime.toISOString(),
+        size: info.size,
       };
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : "Asset not found",
-        exists: false,
-        url,
-      };
+    } catch {
+      return { error: "Asset not found.", exists: false, key };
     }
   },
   inputSchema: z.object({
-    url: z.url().describe("The full Blob URL of the asset to inspect."),
+    key: z
+      .string()
+      .min(1)
+      .max(MAX_ASSET_KEY_LENGTH)
+      .describe("The asset's key, e.g. drafts/post.md."),
   }),
   outputSchema: z.object({
     contentType: z.string().optional(),
-    downloadUrl: z.string().optional(),
     error: z.string().optional(),
     exists: z.boolean(),
-    pathname: z.string().optional(),
+    key: z.string(),
+    modifiedAt: z.string().optional(),
     size: z.number().optional(),
-    uploadedAt: z.string().optional(),
-    url: z.string(),
   }),
 });

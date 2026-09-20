@@ -50,7 +50,7 @@ Write links as plain markdown, `[label](url)`. Don't paste a bare URL, and don't
 
 ## 6. Store files when durable storage is wanted
 
-The asset tools write to Vercel Blob, which is separate from Typefully: a finished thread exported as Markdown, an image saved before you upload it to a draft, anything that should be reachable by URL. Drafts belong in Typefully, so don't use Blob as a scratchpad.
+The asset tools write to the team's asset store, which is separate from Typefully: a finished thread exported as Markdown, an image saved before you upload it to a draft, anything that should outlast the conversation. Each asset has a key, a relative path with an extension, and that key is how anyone reads it back. Drafts belong in Typefully, so don't use the asset store as a scratchpad.
 
 # Notes
 

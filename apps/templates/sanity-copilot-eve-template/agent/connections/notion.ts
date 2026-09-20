@@ -1,15 +1,4 @@
-import { connect } from "@vercel/connect/eve";
 import { defineMcpClientConnection } from "eve/connections";
-
-/**
- * Vercel Connect connector UID for the Notion MCP server.
- *
- * @defaultValue `"notion/sanity-copilot"` — the UID `vercel connect create notion
- * --name sanity-copilot` produces (UIDs are `<type>/<name>`)
- * Override with the `NOTION_CONNECTOR` environment variable when your connector uses a different
- * name.
- */
-const notionConnector = process.env.NOTION_CONNECTOR ?? "notion/sanity-copilot";
 
 /**
  * Bare Notion MCP tool names whose calls require human approval before running.
@@ -33,21 +22,19 @@ const APPROVAL_REQUIRED_TOOLS = [
  * Notion workspace connection (MCP) exposing search, read, and edit tools to the model.
  *
  * @remarks
- * Authorization is user-scoped via Vercel Connect: each user signs in through their own
- * browser consent flow, the per-user token is resolved before every tool call, and it is
- * never exposed to the model.
+ * Authorization is a Notion integration token read from `NOTION_API_KEY`. The token is resolved
+ * before every tool call and never exposed to the model. It is workspace-scoped rather than
+ * per-user, so every Slack user reaches Notion as the same integration.
  *
  * Tools listed in {@link APPROVAL_REQUIRED_TOOLS} are gated on human approval: a gated call
  * pauses for an approve/deny decision (rendered as a Slack button) before it runs.
- *
- * @see {@link https://vercel.com/docs/connect | Vercel Connect}
  */
 export default defineMcpClientConnection({
   approval: ({ toolName }) =>
     APPROVAL_REQUIRED_TOOLS.some((tool) => toolName.includes(tool))
       ? "user-approval"
       : "not-applicable",
-  auth: connect(notionConnector),
+  auth: { getToken: async () => ({ token: process.env.NOTION_API_KEY! }) },
   description: "Notion workspace: search, read, and edit pages and databases.",
   url: "https://mcp.notion.com/mcp",
 });

@@ -1,86 +1,86 @@
+import { readFile, stat } from "node:fs/promises";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { isReservedUserUrl } from "#lib/user-preferences.js";
+import {
+  assetContentType,
+  assetPath,
+  isTextContentType,
+  MAX_ASSET_BYTES,
+  MAX_ASSET_KEY_LENGTH,
+} from "#lib/assets.js";
+import { isReservedUserPath } from "#lib/user-preferences.js";
 
 /**
- * Host suffix that a downloadable URL must end with.
+ * Tool that reads a stored asset's contents.
  *
  * @remarks
- * Restricting downloads to Vercel Blob hosts prevents this tool from being used to fetch
- * arbitrary internal or third-party URLs (an SSRF vector), since the `url` is model-supplied.
- */
-const BLOB_HOST_SUFFIX = ".blob.vercel-storage.com";
-
-/**
- * Tool that downloads the contents of a Vercel Blob asset.
- *
- * @remarks
- * Authorization resolves from the ambient Vercel OIDC credentials; no `BLOB_READ_WRITE_TOKEN`
- * is required. Text content is returned raw; binary content (images, PDFs) is returned
- * base64-encoded with `isBase64: true`. Only Vercel Blob URLs are accepted (see
- * {@link BLOB_HOST_SUFFIX}).
+ * Reads from the assets directory and fetches nothing, so there is no URL to validate and no way
+ * to reach an address the agent was not meant to reach. Text content is returned raw; binary
+ * content comes back base64-encoded with `isBase64: true`. Reads are capped at
+ * {@link MAX_ASSET_BYTES} so one call cannot pull an unbounded payload into context.
  */
 export default defineTool({
   description:
-    "Download and return the contents of a Vercel Blob asset. Use when the user wants to " +
-    "read or reuse a stored file. Text is returned raw; binary files come back base64-encoded.",
+    "Read and return the contents of a stored asset by its key. Use when the user wants to read " +
+    "or reuse a stored file. Text is returned raw; binary files come back base64-encoded.",
   /**
-   * Fetch and return the asset contents.
+   * Read and return the asset contents.
    *
    * @param input - Validated tool input.
    * @returns The asset `content` (raw text or base64) with its `contentType`, or
    * `success: false` with an `error` message.
    */
-  async execute({ url }) {
-    if (isReservedUserUrl(url)) {
+  async execute({ key }) {
+    if (isReservedUserPath(key)) {
       return {
         error: "User preferences are private: use get_user_preferences.",
+        key,
         success: false,
-        url,
       };
     }
+    const path = assetPath(key);
+    if (!path) {
+      return { error: "Asset not found.", key, success: false };
+    }
     try {
-      if (!new URL(url).hostname.endsWith(BLOB_HOST_SUFFIX)) {
+      const info = await stat(path);
+      if (!info.isFile()) {
+        return { error: "Asset not found.", key, success: false };
+      }
+      if (info.size > MAX_ASSET_BYTES) {
         return {
-          error: `Refusing to download: only Vercel Blob URLs (*${BLOB_HOST_SUFFIX}) are allowed.`,
+          error: `Asset is ${info.size} bytes, over the ${MAX_ASSET_BYTES} byte read limit.`,
+          key,
           success: false,
-          url,
         };
       }
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        return {
-          error: `Failed to download: ${response.status} ${response.statusText}`,
-          success: false,
-          url,
-        };
-      }
-
-      const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-      const isText = contentType.startsWith("text/") || contentType.includes("json");
-      const content = isText
-        ? await response.text()
-        : Buffer.from(await response.arrayBuffer()).toString("base64");
-
-      return { content, contentType, isBase64: !isText, success: true, url };
-    } catch (error) {
+      const contentType = assetContentType(key);
+      const isText = isTextContentType(contentType);
+      const bytes = await readFile(path);
       return {
-        error: error instanceof Error ? error.message : "Download failed",
-        success: false,
-        url,
+        content: isText ? bytes.toString("utf8") : bytes.toString("base64"),
+        contentType,
+        isBase64: !isText,
+        key,
+        success: true,
       };
+    } catch {
+      return { error: "Asset not found.", key, success: false };
     }
   },
   inputSchema: z.object({
-    url: z.url().describe("The full Vercel Blob URL of the asset to download."),
+    key: z
+      .string()
+      .min(1)
+      .max(MAX_ASSET_KEY_LENGTH)
+      .describe("The asset's key, e.g. drafts/post.md."),
   }),
   outputSchema: z.object({
     content: z.string().optional(),
     contentType: z.string().optional(),
     error: z.string().optional(),
     isBase64: z.boolean().optional(),
+    key: z.string(),
     success: z.boolean(),
-    url: z.string(),
   }),
 });

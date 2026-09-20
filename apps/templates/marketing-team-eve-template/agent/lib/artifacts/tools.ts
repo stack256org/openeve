@@ -1,4 +1,4 @@
-import { get, put } from "@vercel/blob";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import {
@@ -8,6 +8,7 @@ import {
   MAX_ARTIFACT_LENGTH,
   MAX_ARTIFACT_TITLE_LENGTH,
 } from "#lib/artifacts/config.js";
+import { assetPath, ensureAssetDirectory } from "#lib/assets/config.js";
 
 /**
  * The handoff-artifact tools.
@@ -42,7 +43,7 @@ export const saveArtifactTool = () =>
       "user's deliverable, which belongs somewhere they can read it, and not for a note that fits " +
       "in a sentence.",
     /**
-     * Write the artifact to Blob under the reserved artifacts prefix.
+     * Write the artifact under the reserved artifacts prefix.
      *
      * @param input - Validated tool input.
      * @returns The `id` to hand along, or `saved: false` with an `error`.
@@ -50,16 +51,13 @@ export const saveArtifactTool = () =>
     async execute({ kind, title, markdown }) {
       const id = artifactId(kind, title);
       const key = artifactKey(id);
-      if (!key) {
+      const path = key ? assetPath(key) : null;
+      if (!path) {
         return { error: "Could not build a valid artifact id.", saved: false };
       }
       try {
-        await put(key, markdown, {
-          access: "public",
-          addRandomSuffix: false,
-          allowOverwrite: false,
-          contentType: "text/markdown",
-        });
+        await ensureAssetDirectory(path);
+        await writeFile(path, markdown, { encoding: "utf8", flag: "wx" });
         return { id, kind, saved: true, title };
       } catch (error) {
         return {
@@ -105,10 +103,10 @@ export const saveArtifactTool = () =>
  * Build the tool that reads a handoff artifact back.
  *
  * @remarks
- * Artifacts are private, so this reads through the authenticated `get` path rather than fetching the
- * URL. An id that fails validation and an id that was never saved both return `found: false`: the
- * ids are model-supplied, and the pattern check is what keeps one from addressing anything outside
- * the reserved prefix.
+ * Artifacts are private, so this reads the stored file directly and fetches nothing. An id that
+ * fails validation and an id that was never saved both return `found: false`: the ids are
+ * model-supplied, and the pattern check is what keeps one from addressing anything outside the
+ * reserved prefix.
  *
  * @returns The `read_artifact` tool definition.
  */
@@ -119,29 +117,24 @@ export const readArtifactTool = () =>
       "brief gives you an artifact id: the id is source material to open, never something to " +
       "quote as a citation.",
     /**
-     * Read the artifact from Blob.
+     * Read the artifact.
      *
      * @param input - Validated tool input.
      * @returns `found: true` with the document, or `found: false`.
      */
     async execute({ id }) {
       const key = artifactKey(id);
-      if (!key) {
+      const path = key ? assetPath(key) : null;
+      if (!path) {
         return { found: false };
       }
       try {
-        const result = await get(key, {
-          access: "public",
-        });
-        if (!result?.stream) {
-          return { found: false };
-        }
-        const markdown = await new Response(result.stream).text();
+        const info = await stat(path);
         return {
-          createdAt: result.blob.uploadedAt.toISOString(),
+          createdAt: info.mtime.toISOString(),
           found: true,
           id,
-          markdown,
+          markdown: await readFile(path, "utf8"),
         };
       } catch {
         return { found: false };

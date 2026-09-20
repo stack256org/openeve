@@ -1,16 +1,14 @@
 import { defineSandbox } from "eve/sandbox";
-import { vercel } from "eve/sandbox/vercel";
+import { docker } from "eve/sandbox/docker";
 
 /**
  * Agent sandbox configuration.
  *
  * @remarks
- * Pins the hosted Vercel Sandbox backend for both local development and production, so the
- * same environment runs everywhere. Running locally requires the project to be linked and
- * authenticated to Vercel.
- *
- * @see {@link https://vercel.com/docs/sandbox | Vercel Sandbox}
+ * Pins the Docker backend for both local development and production, so the same environment
+ * runs everywhere. It needs a Docker daemon reachable from wherever the agent runs; swap in
+ * `microsandbox()` or `justbash()` from `eve/sandbox/*` when that does not suit your host.
  */
 export default defineSandbox({
-  backend: vercel(),
+  backend: docker(),
 });

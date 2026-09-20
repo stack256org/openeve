@@ -1,3 +1,3 @@
-import { deleteAssetTool } from "#lib/vercel-blob/tools.js";
+import { deleteAssetTool } from "#lib/assets/tools.js";
 
 export default deleteAssetTool();

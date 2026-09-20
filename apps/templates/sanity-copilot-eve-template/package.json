@@ -18,8 +18,8 @@
     "validate": "pnpm run check && pnpm run typecheck && eve info"
   },
   "dependencies": {
-    "@vercel/blob": "^2.8.0",
-    "@vercel/connect": "0.8.0",
+    "@ai-sdk/anthropic": "4.0.41",
+    "@ai-sdk/openai": "4.0.45",
     "ai": "^7.0.70",
     "eve": "^0.39.3",
     "zod": "4.4.3"

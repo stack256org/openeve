@@ -1,4 +1,5 @@
 import { defineAgent } from "eve";
+import { MODELS } from "#lib/models/config.js";
 
 // Subagent: Social Media Coordinator
 
@@ -19,5 +20,5 @@ export default defineAgent({
     "follower analytics). Researches facts and reviews its own drafts before handing them back. " +
     "The caller passes the brief or source material, the target platforms, and any angle, " +
     "audience, or timing constraints in the message.",
-  model: "anthropic/claude-opus-5",
+  model: MODELS["social-media-coordinator"],
 });

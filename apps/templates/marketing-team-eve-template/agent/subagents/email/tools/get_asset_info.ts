@@ -1,3 +1,3 @@
-import { getAssetInfoTool } from "#lib/vercel-blob/tools.js";
+import { getAssetInfoTool } from "#lib/assets/tools.js";
 
 export default getAssetInfoTool();

@@ -1,4 +1,4 @@
-import { ARTIFACTS_PREFIX } from "#lib/vercel-blob/config.js";
+import { ARTIFACTS_PREFIX } from "#lib/assets/config.js";
 
 /**
  * Key layout, bounds, and id handling for handoff artifacts.
@@ -7,8 +7,8 @@ import { ARTIFACTS_PREFIX } from "#lib/vercel-blob/config.js";
  * A handoff artifact is a Markdown document one agent produces and another reads, passed by id
  * rather than by pasting its text through the lead's context. The id is the whole contract, so this
  * module owns both directions of it: {@link artifactId} builds one that is readable enough to debug,
- * and {@link artifactKey} maps it back to a Blob key while refusing anything that could escape the
- * reserved prefix.
+ * and {@link artifactKey} maps it back to an asset key while refusing anything that could escape
+ * the reserved prefix.
  *
  * Ids are model-supplied on read, which is why {@link ARTIFACT_ID_PATTERN} is strict rather than
  * forgiving. Without it a caller could pass `../brand-context/brand.md` and read a managed document
@@ -64,7 +64,7 @@ const SLUG_TRIM = /^-+|-+$/g;
  *
  * @remarks
  * Anchored, with no dots or slashes permitted, so a validated id cannot traverse out of
- * {@link ARTIFACTS_PREFIX} when it is interpolated into a Blob key.
+ * {@link ARTIFACTS_PREFIX} when it is interpolated into an asset key.
  */
 export const ARTIFACT_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -109,7 +109,7 @@ export const artifactId = (kind: string, title: string): string => {
 };
 
 /**
- * Map an artifact id to its Blob key.
+ * Map an artifact id to its asset key.
  *
  * @remarks
  * Returns `null` for anything that fails {@link ARTIFACT_ID_PATTERN}, which is the guard that keeps
@@ -117,7 +117,7 @@ export const artifactId = (kind: string, title: string): string => {
  * surfacing the distinction, so a probe learns nothing from the difference.
  *
  * @param id - Model-supplied artifact id.
- * @returns The Blob key, or `null` when the id is not a valid artifact id.
+ * @returns The asset key, or `null` when the id is not a valid artifact id.
  */
 export const artifactKey = (id: string): string | null =>
   ARTIFACT_ID_PATTERN.test(id) ? `${ARTIFACTS_PREFIX}${id}.md` : null;

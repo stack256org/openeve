@@ -1,3 +1,3 @@
-import { uploadAssetTool } from "#lib/vercel-blob/tools.js";
+import { uploadAssetTool } from "#lib/assets/tools.js";
 
 export default uploadAssetTool();

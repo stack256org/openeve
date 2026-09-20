@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 /**
- * Reserved Blob path prefix for per-user preference files.
+ * Reserved asset key prefix for per-user preference files.
  *
  * @remarks
  * The user-preferences tools own this prefix exclusively. The general-purpose asset tools
@@ -23,45 +23,25 @@ type UserPrincipal =
   | null
   | undefined;
 
-/** Leading slashes stripped from a pathname or URL path before the reserved-prefix check. */
+/** Leading slashes stripped from a key before the reserved-prefix check. */
 const LEADING_SLASHES = /^\/+/;
 
 /**
- * Whether a Blob pathname falls under the reserved user-preferences prefix.
+ * Whether an asset key falls under the reserved user-preferences prefix.
  *
  * @remarks
- * Leading slashes are stripped before the check because `@vercel/blob`'s `put` normalizes a
- * pathname by dropping them: a caller-supplied `/user-preferences/x.md` would store at
- * `user-preferences/x.md`, inside the reserved namespace, so the guard must see the normalized
- * form to reject it.
+ * Leading slashes are stripped before the check so `/user-preferences/x.md` is refused by name
+ * rather than falling through to the generic "not found" that `assetPath` produces for it. Both
+ * outcomes refuse the call; this one tells the model which tool to use instead.
  *
- * @param pathname - A Blob object pathname, e.g. `drafts/post.md`.
- * @returns `true` when the path is reserved for user preferences.
+ * @param key - An asset key, e.g. `drafts/post.md`.
+ * @returns `true` when the key is reserved for user preferences.
  */
-export const isReservedUserPath = (pathname: string): boolean =>
-  pathname.replace(LEADING_SLASHES, "").startsWith(USER_PREFERENCES_PREFIX);
+export const isReservedUserPath = (key: string): boolean =>
+  key.replace(LEADING_SLASHES, "").startsWith(USER_PREFERENCES_PREFIX);
 
 /**
- * Whether a Blob URL points at a reserved user-preferences object.
- *
- * @remarks
- * A public Blob URL embeds the object pathname as its URL path, so the reserved-prefix check
- * applies to the URL's pathname. Unparseable input is treated as not reserved; the caller's own
- * URL validation handles malformed URLs.
- *
- * @param url - A full Blob URL.
- * @returns `true` when the URL addresses a reserved user-preferences object.
- */
-export const isReservedUserUrl = (url: string): boolean => {
-  try {
-    return isReservedUserPath(new URL(url).pathname.replace(LEADING_SLASHES, ""));
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Resolve the Blob key holding the current user's preferences.
+ * Resolve the asset key holding the current user's preferences.
  *
  * @remarks
  * The key is derived entirely from the framework-resolved principal — never from model input —
@@ -71,7 +51,7 @@ export const isReservedUserUrl = (url: string): boolean => {
  * `null` so the tools can decline rather than share a single anonymous file.
  *
  * @param principal - The value of `ctx.session.auth.current`.
- * @returns The reserved Blob key for this user, or `null` when there is no user principal.
+ * @returns The reserved asset key for this user, or `null` when there is no user principal.
  */
 export const userPreferencesKey = (principal: UserPrincipal): string | null => {
   if (principal?.principalType !== "user" || !principal.principalId) {

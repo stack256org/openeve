@@ -1,4 +1,13 @@
+import { createOpenAI } from "@ai-sdk/openai";
 import { defineAgent } from "eve";
+
+/**
+ * OpenAI called directly with its own API key, so no gateway sits in the request path.
+ *
+ * @remarks
+ * Reads `OPENAI_API_KEY`. Models are addressed through `.responses()`, OpenAI's current API.
+ */
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * Fresh-context web-research subagent.
@@ -22,7 +31,7 @@ export default defineAgent({
     "caller doesn't already have. Runs refined searches against reliable sources and returns " +
     "cited findings with confidence levels, plus the gaps it couldn't verify. The caller " +
     "passes the question and any known context in the message.",
-  model: "openai/gpt-5.6-terra",
+  model: openai.responses("gpt-5.6-terra"),
   outputSchema: {
     additionalProperties: false,
     properties: {

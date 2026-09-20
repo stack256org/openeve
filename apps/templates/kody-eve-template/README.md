@@ -1,6 +1,5 @@
 # Kody (GitHub Maintainer) eve Template
 
-[![Agent Stack](https://img.shields.io/badge/Agent%20Stack-000?style=flat-square&logo=vercel&logoColor=FFF&labelColor=000&color=000)](https://vercel.com/kb/agent-stack)
 [![MIT License](https://img.shields.io/badge/License-MIT-000?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=000&color=000)](LICENSE)
 
 Kody is a personal GitHub maintainer agent built on [eve](https://eve.dev), made for freelancers, solo maintainers, and anyone who runs a repo alongside everything else. Every Monday it emails you a digest of your repo's open issues, and you reply to act on it ("create Linear issues for #1 and #2 and assign them to me"). Between digests it keeps working the repo: summarizing new pull requests, answering @mentions, and handling the Linear issues you delegate. You stay in your inbox, Kody works the tracker.
@@ -10,68 +9,50 @@ Kody is a personal GitHub maintainer agent built on [eve](https://eve.dev), made
 - **Summarizes new pull requests.** When a PR opens, Kody posts one orienting comment: what the PR does and why, plus a table breaking down the changed files. PRs opened by bots are skipped.
 - **Works in Linear.** Delegate issues to the agent or mention it in Linear Agent Sessions ("email me a summary of this issue"), and it works the issue with the Linear MCP tools.
 - **Answers GitHub mentions.** @Kody on an issue or PR gets an in-thread reply, cross-referencing Linear when it helps.
-- **Remembers your preferences.** Standing preferences (a preferred email address, how you like the digest grouped, a default Linear team) live in Vercel Blob, keyed to the resolved principal.
+- **Remembers your preferences.** Standing preferences (a preferred email address, how you like the digest grouped, a default Linear team) live on disk under `EVE_DATA_DIR`, keyed to the resolved principal.
 
-## Deploy
+## Setup
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?project-name=kody-eve-template&repository-name=kody-eve-template&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fkody-eve-template&env=RESEND_API_KEY,RESEND_WEBHOOK_SECRET,RESEND_FROM_ADDRESS,DIGEST_REPO,DIGEST_EMAIL&envDescription=Resend%20API%20key%20%2B%20inbound%20webhook%20secret%2C%20a%20verified%20sender%20address%2C%20and%20the%20digest%20repo%2Frecipient.&connect=%5B%7B%22type%22%3A%22github%22%2C%22env%22%3A%22GITHUB_CONNECTOR%22%2C%22triggers%22%3Atrue%2C%22triggerPath%22%3A%22%2Feve%2Fv1%2Fgithub%22%7D%2C%7B%22type%22%3A%22linear%22%2C%22env%22%3A%22LINEAR_CONNECTOR%22%2C%22triggers%22%3Atrue%2C%22triggerPath%22%3A%22%2Feve%2Fv1%2Flinear%22%7D%5D&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%2C%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
+Copy `.env.example` to `.env.local` and fill it in. Kody needs four groups of credentials.
 
-Deploying with the button provisions everything the agent needs and wires it up for you:
+### GitHub
 
-- a **GitHub** connector (sets `GITHUB_CONNECTOR`, with the trigger pointed at `/eve/v1/github`),
-- a **Linear** connector (sets `LINEAR_CONNECTOR`, with the trigger pointed at `/eve/v1/linear`),
-- a **Vercel Blob** store for the preference tools,
-- an **Upstash Redis** store (sets `REDIS_URL`) for the email channel's thread state,
-- prompts for the Resend API key, webhook secret, sender address, and digest repo and recipient.
+Two different things authenticate to GitHub, because the channel and the tools do different jobs.
 
-After it deploys, point Resend's inbound webhook at `https://<deployment>/eve/v1/resend` (see [Resend](#resend) below).
+- **The channel** answers @mentions and comments on new pull requests, so it is a GitHub App: set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET`, subscribe the App to `issue_comment`, `pull_request_review_comment`, and `pull_request`, and point its webhook at `<your-host>/eve/v1/github`.
+- **The tools** read and write issues through the GitHub Tools SDK, which reads `GITHUB_TOKEN`. A personal access token or an App installation token both work; scope it to the repositories Kody maintains.
 
-To set things up by hand instead, deploy with `eve deploy` (it wraps `vercel deploy --prod`; the raw command cannot auto-detect the eve framework) and provision the integrations first:
+### Linear
 
-### GitHub and Linear connectors
-
-Create the connectors with the [Vercel CLI](https://vercel.com/docs/cli) and point their triggers at the routes the agent serves:
-
-```bash
-# GitHub connector (UID -> GITHUB_CONNECTOR); subscribe to issue_comment and
-# pull_request_review_comment during registration for mention-driven turns
-vercel connect create github --triggers
-vercel connect attach <github-uid> --triggers --trigger-path /eve/v1/github --yes
-
-# Linear connector (UID -> LINEAR_CONNECTOR); subscribe to the AgentSessionEvent
-# webhook category during registration
-vercel connect create linear --triggers
-vercel connect attach <linear-uid> --triggers --trigger-path /eve/v1/linear --yes
-```
-
-Set `GITHUB_CONNECTOR` and `LINEAR_CONNECTOR` to the printed UIDs in the project's environment.
+Create a Linear agent app, then set `LINEAR_AGENT_ACCESS_TOKEN` (used by both the channel and the Linear MCP connection) and `LINEAR_WEBHOOK_SECRET`. Subscribe the app to the AgentSessionEvent webhook category and point it at `<your-host>/eve/v1/linear`.
 
 ### Resend
 
-Set `RESEND_API_KEY` (used by both the email channel and the Resend MCP connection) and `RESEND_WEBHOOK_SECRET`, then point Resend's inbound webhook at `https://<deployment>/eve/v1/resend` so replies reach the agent. Set `RESEND_FROM_ADDRESS` to a verified sender on your Resend domain, and optionally `RESEND_FROM_NAME` (defaults to "Kody"); the email channel and the system prompt both read them, so every email the agent sends carries the same identity.
+Set `RESEND_API_KEY` (used by both the email channel and the Resend MCP connection) and `RESEND_WEBHOOK_SECRET`, then point Resend's inbound webhook at `<your-host>/eve/v1/resend` so replies reach the agent. Set `RESEND_FROM_ADDRESS` to a verified sender on your Resend domain, and optionally `RESEND_FROM_NAME` (defaults to "Kody"); the email channel and the system prompt both read them, so every email the agent sends carries the same identity.
 
-### Redis, Blob, and digest config
+### Redis, storage, models, and digest config
 
-- `REDIS_URL`: thread state for the email channel (`@chat-adapter/state-redis`). Any Redis works; the [Upstash for Redis](https://vercel.com/marketplace/upstash/upstash-kv) marketplace integration sets the variable automatically when you connect a store.
-- A Vercel Blob store connected to the project, for the preference tools: `vercel blob create-store <name> --access public --yes`.
-- `DIGEST_REPO` (e.g. `owner/repo`) and `DIGEST_EMAIL`: what the weekly digest covers and who receives it. Both are required at build time; a missing value fails discovery with a clear error instead of deploying a digest that cannot send.
+- `REDIS_URL`: thread state for the email channel (`@chat-adapter/state-redis`). Any Redis works, hosted or a local container.
+- `EVE_DATA_DIR`: the directory holding the preference files and anything else durable Kody writes. Defaults to `./data`; mount a volume so it outlives the process.
+- `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`: the root agent calls Anthropic directly, the researcher subagent calls OpenAI.
+- `DIGEST_REPO` (e.g. `owner/repo`) and `DIGEST_EMAIL`: what the weekly digest covers and who receives it. Both are required at build time; a missing value fails discovery with a clear error instead of shipping a digest that cannot send.
 
 ## Tech stack
 
-| Layer                  | Technology                                                                                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent framework        | [eve](https://eve.dev)                                                                                                                                          |
-| Language               | TypeScript (strict, ESM)                                                                                                                                        |
-| GitHub surface & tools | eve GitHub channel + [GitHub Tools SDK](https://github.com/vercel-labs/github-tools) (maintainer preset), via [Vercel Connect](https://vercel.com/docs/connect) |
-| Linear surface & tools | eve Linear channel (Agent Sessions) via [Vercel Connect](https://vercel.com/docs/connect) + Linear MCP                                                          |
-| Email surface          | Resend, via the [Chat SDK](https://chat-sdk.dev) channel (`@resend/chat-sdk-adapter`) with Redis state                                                          |
-| Email sending          | Resend MCP (`mcp.resend.com`)                                                                                                                                   |
-| Preference storage     | [Vercel Blob](https://vercel.com/docs/vercel-blob)                                                                                                              |
-| Model access           | [Vercel AI Gateway](https://vercel.com/docs/ai-gateway)                                                                                                         |
-| Sandbox                | [Vercel Sandbox](https://vercel.com/docs/sandbox)                                                                                                               |
-| Lint & format          | [Ultracite](https://www.ultracite.ai/) (Biome)                                                                                                                  |
+| Layer                  | Technology                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent framework        | [eve](https://eve.dev)                                                                                                                |
+| Language               | TypeScript (strict, ESM)                                                                                                              |
+| GitHub surface & tools | eve GitHub channel (GitHub App) + [GitHub Tools SDK](https://github.com/vercel-labs/github-tools) (maintainer preset, `GITHUB_TOKEN`) |
+| Linear surface & tools | eve Linear channel (Agent Sessions) + Linear MCP, both on `LINEAR_AGENT_ACCESS_TOKEN`                                                 |
+| Email surface          | Resend, via the [Chat SDK](https://chat-sdk.dev) channel (`@resend/chat-sdk-adapter`) with Redis state                                |
+| Email sending          | Resend MCP (`mcp.resend.com`)                                                                                                         |
+| Preference storage     | the local filesystem, under `EVE_DATA_DIR`                                                                                            |
+| Model access           | Anthropic and OpenAI, called directly with their own API keys                                                                         |
+| Sandbox                | Docker                                                                                                                                |
+| Lint & format          | [Ultracite](https://www.ultracite.ai/) (Biome)                                                                                        |
 
-GitHub and Linear credentials are brokered by [Vercel Connect](https://vercel.com/docs/connect); Blob and the model authenticate with the project's [Vercel OIDC](https://vercel.com/docs/oidc) token. The only static credentials are the Resend API key and inbound webhook secret.
+Every credential is an environment variable, so Kody runs the same on a laptop, a VM, or a container. `.env.example` lists all of them with a one-line note on where each comes from.
 
 ## Quick start with an AI coding agent
 
@@ -97,7 +78,7 @@ agent/
     resend.ts               # Resend MCP, static bearer token from RESEND_API_KEY
   schedules/
     weekly-digest.ts        # cron "0 9 * * 1" (Mondays 09:00 UTC); the agent composes and sends the digest
-  sandbox.ts                # Vercel Sandbox backend
+  sandbox.ts                # Docker sandbox backend
   subagents/
     researcher/             # fresh-context web researcher (own session, web tools only)
   tools/
@@ -107,7 +88,8 @@ agent/
     clear_user_preferences.ts # clear this user's preferences (requires approval)
   lib/
     constants.ts            # requireEnv + shared app-scoped Linear authorization
-    user-preferences.ts     # principal-scoped Blob key + reserved-prefix guard
+    assets.ts               # data directory, anchored key validation, content types
+    user-preferences.ts     # principal-scoped storage key + reserved-prefix guard
   skills/
     writing-quality/        # prose rules for anything written for humans
     digest-format/          # the weekly digest's structure: grouping, criteria, one-line summaries
@@ -119,20 +101,20 @@ agent/
 
 The [eve content agent template](https://github.com/vercel-labs/eve-content-agent-template) is a full content assistant: per-surface style skills (blog, LinkedIn, X, release notes, newsletters), a house voice, and a style lint. Instead of merging all of that into Kody, you can deploy it as its own agent and let Kody delegate to it, through eve's [remote agents](https://eve.dev/docs/guides/remote-agents) feature, when repo work turns into writing work: release notes for a shipped fix, or a post announcing a feature that just closed out.
 
-1. Deploy the content agent template as its own Vercel project.
-2. Add a remote subagent file to this repo. The filename is the tool name, and `vercelOidc()` handles deployment-to-deployment auth with no shared secret:
+1. Deploy the content agent template as its own service.
+2. Add a remote subagent file to this repo. The filename is the tool name, and `bearer()` carries a shared token between the two deployments:
 
 ```ts
 // agent/subagents/content_writer.ts
 import { defineRemoteAgent } from "eve";
-import { vercelOidc } from "eve/agents/auth";
+import { bearer } from "eve/agents/auth";
 
 export default defineRemoteAgent({
-  url: () => process.env.CONTENT_AGENT_URL ?? "https://your-content-agent.vercel.app",
+  url: () => process.env.CONTENT_AGENT_URL ?? "https://your-content-agent.example.com",
   description:
     "Drafts blog posts, LinkedIn and X posts, release notes, and newsletters in the house voice. " +
     "Pass the surface, the source material, and any constraints in the message.",
-  auth: vercelOidc(),
+  auth: bearer(() => process.env.CONTENT_AGENT_TOKEN ?? ""),
 });
 ```
 
@@ -142,20 +124,13 @@ The remote agent runs in its own deployment with its own skills and connections,
 
 ## Local development
 
-Link the project you deployed (or a fresh one) and pull its environment:
-
-```bash
-vercel link
-vercel env pull
-```
-
-Then run the development server and link a model provider with `/model` in the TUI:
+Copy `.env.example` to `.env.local`, fill it in, then run the development server:
 
 ```bash
 pnpm dev
 ```
 
-You can chat with the agent directly in the dev TUI to exercise the GitHub tools, the Linear and Resend connections, and the preference tools. The webhook surfaces (GitHub mentions, Linear sessions, email replies) run against a deployment.
+You can chat with the agent directly in the dev TUI to exercise the GitHub tools, the Linear and Resend connections, and the preference tools. The webhook surfaces (GitHub mentions, Linear sessions, email replies) need a public URL, so point them at a tunnel or a deployment.
 
 `eve dev` never fires schedules on their cron cadence. Trigger the digest by hand with the dev dispatch route:
 
@@ -194,12 +169,12 @@ The agent auto-updates as you edit these files.
 ## Learn more
 
 - [eve documentation](https://eve.dev/docs/introduction): the framework powering this agent.
-- [Vercel Connect](https://vercel.com/docs/connect): manages the GitHub and Linear credentials.
+- [GitHub Apps](https://docs.github.com/en/apps/creating-github-apps): where the channel's App id, private key, and webhook secret come from.
 - [Chat SDK](https://chat-sdk.dev): the adapter layer behind the email channel.
 - [Resend](https://resend.com/docs): email sending and inbound webhooks.
-- [Vercel Blob](https://vercel.com/docs/vercel-blob): object storage for the preference tools.
+- [Linear agents](https://linear.app/developers/agents): where the agent access token and webhook secret come from.
 
 ## Related templates
 
 - [eve Content Agent](https://github.com/vercel-labs/eve-content-agent-template)
-- [eve Personal Agent](https://vercel.com/templates/nuxt/eve-personal-agent)
+- [eve Personal Agent](https://github.com/vercel-labs/personal-agent-template)

@@ -1,6 +1,7 @@
-import { list, put } from "@vercel/blob";
+import { readFile, writeFile } from "node:fs/promises";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { assetPath, ensureAssetDirectory } from "#lib/assets/config.js";
 import { BRAND_CONTEXT_KEY, MAX_BRAND_CONTEXT_LENGTH } from "#lib/brand-context/config.js";
 
 /**
@@ -15,8 +16,11 @@ import { BRAND_CONTEXT_KEY, MAX_BRAND_CONTEXT_LENGTH } from "#lib/brand-context/
  * owns its own tool instance instead of re-exporting one.
  */
 
+/** Resolved path of the brand context document, or `null` if the key layout ever breaks. */
+const brandContextPath = (): string | null => assetPath(BRAND_CONTEXT_KEY);
+
 /**
- * Build the tool that loads the team's shared brand context from Vercel Blob.
+ * Build the tool that loads the team's shared brand context.
  *
  * @remarks
  * Returns `found: false` with an empty document when the team hasn't written one yet, which is a
@@ -38,25 +42,16 @@ export const getBrandContextTool = () =>
      * @returns `found` plus the `context` Markdown (empty when none), or an `error`.
      */
     async execute() {
+      const path = brandContextPath();
+      if (!path) {
+        return { context: "", error: "Brand context is not addressable.", found: false };
+      }
       try {
-        const { blobs } = await list({
-          limit: 1,
-          prefix: BRAND_CONTEXT_KEY,
-        });
-        const blob = blobs.find((b) => b.pathname === BRAND_CONTEXT_KEY);
-        if (!blob) {
+        return { context: await readFile(path, "utf8"), found: true };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
           return { context: "", found: false };
         }
-        const response = await fetch(blob.url);
-        if (!response.ok) {
-          return {
-            context: "",
-            error: `Failed to read brand context: ${response.status} ${response.statusText}`,
-            found: false,
-          };
-        }
-        return { context: await response.text(), found: true };
-      } catch (error) {
         return {
           context: "",
           error: error instanceof Error ? error.message : "Failed to load brand context",
@@ -73,7 +68,7 @@ export const getBrandContextTool = () =>
   });
 
 /**
- * Build the tool that saves the team's shared brand context to Vercel Blob.
+ * Build the tool that saves the team's shared brand context.
  *
  * @remarks
  * This overwrites the whole document and the document is shared by the entire team, so a careless
@@ -96,17 +91,17 @@ export const saveBrandContextTool = () =>
      * Write the brand context document.
      *
      * @param input - Validated tool input.
-     * @returns `success: true` with the stored `pathname`, or `success: false` with an `error`.
+     * @returns `success: true` with the stored `key`, or `success: false` with an `error`.
      */
     async execute({ context }) {
+      const path = brandContextPath();
+      if (!path) {
+        return { error: "Brand context is not addressable.", success: false };
+      }
       try {
-        const blob = await put(BRAND_CONTEXT_KEY, context, {
-          access: "public",
-          addRandomSuffix: false,
-          allowOverwrite: true,
-          contentType: "text/markdown",
-        });
-        return { pathname: blob.pathname, success: true };
+        await ensureAssetDirectory(path);
+        await writeFile(path, context, "utf8");
+        return { key: BRAND_CONTEXT_KEY, success: true };
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : "Failed to save brand context",
@@ -125,7 +120,7 @@ export const saveBrandContextTool = () =>
     }),
     outputSchema: z.object({
       error: z.string().optional(),
-      pathname: z.string().optional(),
+      key: z.string().optional(),
       success: z.boolean(),
     }),
   });

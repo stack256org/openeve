@@ -61,7 +61,7 @@ When Notion isn't reachable or no destination can be agreed, say so and hand the
 
 ## 6. Store files when durable storage is wanted
 
-The asset tools write to Vercel Blob, which is for files that should be reachable by URL rather than read in Notion: an image a draft references, a Markdown export someone asked for, a research document worth keeping. The piece itself lives in Notion, so don't duplicate it into Blob.
+The asset tools write to the team's asset store, which is for files that belong alongside the work rather than in Notion: an image a draft references, a Markdown export someone asked for, a research document worth keeping. Each asset has a key, a relative path with an extension, and that key is how anyone reads it back. The piece itself lives in Notion, so don't duplicate it into the asset store.
 
 ## 7. Hand back the link and its caveats
 

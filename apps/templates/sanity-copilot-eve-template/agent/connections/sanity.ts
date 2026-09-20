@@ -1,15 +1,4 @@
-import { connect } from "@vercel/connect/eve";
 import { defineMcpClientConnection } from "eve/connections";
-
-/**
- * Vercel Connect connector UID for the Sanity MCP server.
- *
- * @defaultValue `"sanity/copilot-agent"` — the UID `vercel connect create sanity
- * --name copilot-agent` produces (UIDs are `<type>/<name>`)
- * Override with the `SANITY_CONNECTOR` environment variable when your connector uses a different
- * name.
- */
-const sanityConnector = process.env.SANITY_CONNECTOR ?? "sanity/copilot-agent";
 
 /**
  * Bare Sanity MCP tool names whose calls require human approval before running.
@@ -35,21 +24,20 @@ const APPROVAL_REQUIRED_TOOLS = [
  * Sanity connection (MCP) exposing search, read, and edit tools to the model.
  *
  * @remarks
- * Authorization is user-scoped via Vercel Connect: each user signs in through their own
- * browser consent flow, the per-user token is resolved before every tool call, and it is
- * never exposed to the model.
+ * Authorization is a Sanity API token read from `SANITY_API_TOKEN`. The token is resolved before
+ * every tool call and never exposed to the model. It is project-scoped rather than per-user, so
+ * every Slack user reaches Sanity with the same permissions: mint the token with the narrowest
+ * role the agent needs.
  *
  * Tools listed in {@link APPROVAL_REQUIRED_TOOLS} are gated on human approval: a gated call
  * pauses for an approve/deny decision (rendered as a Slack button) before it runs.
- *
- * @see {@link https://vercel.com/docs/connect | Vercel Connect}
  */
 export default defineMcpClientConnection({
   approval: ({ toolName }) =>
     APPROVAL_REQUIRED_TOOLS.some((tool) => toolName.includes(tool))
       ? "user-approval"
       : "not-applicable",
-  auth: connect(sanityConnector),
+  auth: { getToken: async () => ({ token: process.env.SANITY_API_TOKEN! }) },
   description:
     "Sanity CMS: query documents with GROQ, inspect schemas, create/edit drafts, manage releases, generate media.",
   url: "https://mcp.sanity.io",

@@ -57,7 +57,7 @@ Return the positioning and messaging, then say plainly which claims are proven, 
 
 ## 6. Store files when durable storage is wanted
 
-The asset tools write to Vercel Blob, for things that should outlast the conversation or be reachable by URL: a full messaging framework, competitor teardowns, an interview transcript. The shared brand context has its own tool and its own reserved location, so never write it through the asset tools.
+The asset tools write to the team's asset store, for things that should outlast the conversation: a full messaging framework, competitor teardowns, an interview transcript. Each asset has a key, a relative path with an extension, and that key is how anyone reads it back. The shared brand context has its own tool and its own reserved location, so never write it through the asset tools.
 
 # Notes
 

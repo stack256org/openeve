@@ -1,4 +1,3 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import { callSlackApi } from "eve/channels/slack";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
@@ -176,8 +175,8 @@ const slackCoordinate = (
  * keeps the digest available rather than turning a missing coordinate into a dead end.
  *
  * Renders the tables as Slack `data_table` blocks, retrying once as fixed-width text if Slack
- * rejects the blocks. The bot token comes from the Slack channel's Vercel Connect credentials, so
- * no Slack secret lives in code.
+ * rejects the blocks. The bot token comes from `SLACK_BOT_TOKEN`, the same variable the Slack
+ * channel reads, so one installation serves both.
  */
 export default defineTool({
   description:
@@ -219,9 +218,6 @@ export default defineTool({
       dataTableBlock("Followers", followersTable),
     ];
     try {
-      const { botToken } = connectSlackCredentials(
-        process.env.SLACK_CONNECTOR ?? "slack/marketing-team",
-      );
       const baseBody: Record<string, unknown> = {
         channel,
         unfurl_links: false,
@@ -232,7 +228,7 @@ export default defineTool({
       const post = (body: Record<string, unknown>) =>
         callSlackApi({
           body: { ...baseBody, ...body },
-          botToken,
+          botToken: undefined,
           operation: "chat.postMessage",
         });
       const withBlocks = await post({ blocks, text });

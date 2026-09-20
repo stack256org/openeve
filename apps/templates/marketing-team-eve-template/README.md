@@ -2,14 +2,11 @@
 
 # Marketing Team eve Template
 
-[![Agent Stack](https://img.shields.io/badge/Agent%20Stack-000?style=flat-square&logo=vercel&logoColor=FFF&labelColor=000&color=000)](https://vercel.com/kb/agent-stack)
 [![MIT License](https://img.shields.io/badge/License-MIT-000?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=000&color=000)](LICENSE)
 
 Run a team of marketing agents built on [eve](https://eve.dev). You bring work to a team lead: a launch to plan, posts to write, or a page that isn't converting. The lead briefs the right specialist and hands back what they produced.
 
 You talk to it in Slack or a terminal. It delivers real work in the tools you already use: blog drafts in Notion, social posts in Typefully, email campaigns in Resend.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?project-name=marketing-team-eve-template&repository-name=marketing-team-eve-template&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fmarketing-team-eve-template%2Ftree%2Fmain&connect=%5B%7B%22type%22%3A%22notion%22%2C%22env%22%3A%22NOTION_CONNECTOR%22%7D%2C%7B%22type%22%3A%22resend%22%2C%22env%22%3A%22RESEND_CONNECTOR%22%7D%2C%7B%22type%22%3A%22slack%22%2C%22env%22%3A%22SLACK_CONNECTOR%22%2C%22triggers%22%3Atrue%2C%22triggerPath%22%3A%22%2Feve%2Fv1%2Fslack%22%7D%5D&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D&env=TYPEFULLY_API_KEY&envDescription=API%20key%20for%20the%20Typefully%20MCP%20server%2C%20used%20to%20read%20and%20write%20social%20drafts)
 
 ## What using it looks like
 
@@ -21,17 +18,22 @@ You talk to it in Slack or a terminal. It delivers real work in the tools you al
 
 Anything irreversible, like sending an email campaign or publishing a scheduled post, pauses for your approval first. You get an approve or deny button in Slack or the terminal before it goes out.
 
-## Deploy
+## Setup
 
-The one-click deploy provisions and wires up everything the team needs:
+Copy `.env.example` to `.env.local` and fill it in. Every credential is an environment variable, so the team runs the same on a laptop, a VM, or a container.
 
-| Provisioned                      | Sets                |
-| -------------------------------- | ------------------- |
-| Notion connector                 | `NOTION_CONNECTOR`  |
-| Resend connector                 | `RESEND_CONNECTOR`  |
-| Slack connector                  | `SLACK_CONNECTOR`   |
-| Vercel Blob store                | Blob credentials    |
-| Prompt for the Typefully API key | `TYPEFULLY_API_KEY` |
+| Set                                       | Where it comes from                                                                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET` | A Slack app installed in your workspace, with its request URL at `<host>/eve/v1/slack` |
+| `NOTION_API_KEY`                          | A Notion internal integration, shared with the pages the team should reach             |
+| `RESEND_API_KEY`                          | resend.com/api-keys                                                                    |
+| `TYPEFULLY_API_KEY`                       | Typefully settings                                                                     |
+| `ANTHROPIC_API_KEY`                       | console.anthropic.com                                                                  |
+| `EVE_DATA_DIR`                            | Optional: the directory holding brand context, preferences, artifacts, and assets      |
+
+The Notion and Resend tokens are account-scoped rather than per-user, so mint each with the narrowest permission that covers the work. `EVE_DATA_DIR` defaults to `./data`; back up that one path, or point it at a mounted volume.
+
+Then run it anywhere Node 24 runs, with a Docker daemon available for the sandbox.
 
 ### Before your first email campaign
 
@@ -71,12 +73,10 @@ The full approval matrix, the credential model, and the reasoning behind each bo
 
 ## Local development
 
-Link the project you deployed, or a fresh one, and pull its environment:
+Copy `.env.example` to `.env.local`, fill it in, then start the TUI:
 
 ```bash
-vercel link
-vercel env pull
-pnpm dev          # then run /model once in the TUI to link a provider
+pnpm dev
 ```
 
 | Command                   | What it does                                                 |
@@ -86,7 +86,7 @@ pnpm dev          # then run /model once in the TUI to link a provider
 | `pnpm check` / `pnpm fix` | Ultracite check and auto-fix                                 |
 | `pnpm typecheck`          | `tsc --noEmit`                                               |
 | `npx eve info`            | Print every discovered tool, skill, connection, and subagent |
-| `eve deploy`              | Ship to production                                           |
+| `pnpm build`              | Produce the deployable bundle                                |
 
 ## Under the hood
 
@@ -94,13 +94,13 @@ pnpm dev          # then run /model once in the TUI to link a provider
 | --------------------------------- | ------------------------------------------------------------------------------ |
 | Agent framework                   | [eve](https://eve.dev)                                                         |
 | Language                          | TypeScript (strict, ESM), Node 24.x                                            |
-| Chat surfaces                     | Slack via Vercel Connect, the eve dev TUI                                      |
+| Chat surfaces                     | Slack (bot token + signing secret), the eve dev TUI                            |
 | Long-form deliverables and briefs | Notion (MCP)                                                                   |
 | Social publishing                 | Typefully (MCP)                                                                |
 | Email campaigns                   | Resend (MCP)                                                                   |
-| Shared state and files            | [Vercel Blob](https://vercel.com/docs/vercel-blob)                             |
-| Model access                      | [Vercel AI Gateway](https://vercel.com/docs/ai-gateway)                        |
-| Skill reference files and `bash`  | [Vercel Sandbox](https://vercel.com/docs/sandbox)                              |
+| Shared state and files            | the local filesystem, under `EVE_DATA_DIR`                                     |
+| Model access                      | Anthropic, called directly with `ANTHROPIC_API_KEY`                            |
+| Skill reference files and `bash`  | Docker                                                                         |
 | Lint and format                   | [Ultracite](https://www.ultracite.ai/), a [Biome](https://biomejs.dev/) preset |
 
 ## Customizing
@@ -122,14 +122,14 @@ Specialists don't have to live in this repo. eve's [remote agents](https://eve.d
 ```ts
 // agent/subagents/paid_ads.ts
 import { defineRemoteAgent } from "eve";
-import { vercelOidc } from "eve/agents/auth";
+import { bearer } from "eve/agents/auth";
 
 export default defineRemoteAgent({
-  url: () => process.env.PAID_ADS_AGENT_URL ?? "https://your-paid-ads-agent.vercel.app",
+  url: () => process.env.PAID_ADS_AGENT_URL ?? "https://your-paid-ads-agent.example.com",
   description:
     "Plan and write paid search and social ads: audience, offer, and the copy variants to test. " +
     "Pass the campaign goal, the audience, the budget, and any brand constraints in the message.",
-  auth: vercelOidc(),
+  auth: bearer(() => process.env.PAID_ADS_AGENT_TOKEN ?? ""),
 });
 ```
 
@@ -144,7 +144,7 @@ Set `PAID_ADS_AGENT_URL`, and the lead picks the specialist up from its `descrip
 | [eve subagents](https://eve.dev/docs/subagents)                                            | Delegation, fresh sessions, routing descriptions |
 | [eve skills](https://eve.dev/docs/skills)                                                  | Load-on-demand skills and reference files        |
 | [Human in the loop](https://eve.dev/docs/human-in-the-loop)                                | The approval gates above                         |
-| [Vercel Connect](https://vercel.com/docs/connect)                                          | Notion, Resend, and Slack credentials            |
+| [Slack apps](https://api.slack.com/quickstart)                                             | Where the bot token and signing secret come from |
 
 Deeper internals live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and agent guidance lives in [`AGENTS.md`](./AGENTS.md).
 

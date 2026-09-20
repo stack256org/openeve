@@ -56,7 +56,7 @@ When a brief hands you an artifact id, open it with `read_artifact`. It's source
 
 ## 5. Store files when durable storage is wanted
 
-The asset tools write to Vercel Blob, which is for files that should outlast the conversation or be reachable by URL: an audit exported as Markdown, a URL map, a schema file a developer will paste in. A finding you're still working out belongs in the conversation, so don't use Blob as a scratchpad.
+The asset tools write to the team's asset store, which is for files that should outlast the conversation: an audit exported as Markdown, a URL map, a schema file a developer will paste in. Each asset has a key, a relative path with an extension, and that key is how anyone reads it back. A finding you're still working out belongs in the conversation, so don't use the asset store as a scratchpad.
 
 # Notes
 

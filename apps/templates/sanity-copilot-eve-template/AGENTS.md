@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## Project overview
 
-A Slack-based Sanity copilot built on the [eve](https://eve.dev) agent framework. Users @mention it in Slack; it manages their Sanity project through the **Sanity** MCP connection (GROQ queries, schemas, drafts, releases), pulls source material from and drafts into **Notion** (user-scoped OAuth via Vercel Connect), and stores files in **Vercel Blob**. Its workflow lives in `agent/instructions.md`.
+A Slack-based Sanity copilot built on the [eve](https://eve.dev) agent framework. Users @mention it in Slack; it manages their Sanity project through the **Sanity** MCP connection (GROQ queries, schemas, drafts, releases), pulls source material from and drafts into **Notion** (workspace integration token via `NOTION_API_KEY`), and stores files on the local filesystem under `EVE_DATA_DIR`. Its workflow lives in `agent/instructions.md`.
 
 The whole agent is defined under `agent/`. eve discovers capabilities from the filesystem. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the component map, data flow, and boundaries.
 
@@ -17,7 +17,6 @@ pnpm typecheck      # tsc (TypeScript, no emit)
 pnpm check          # ultracite (Biome) lint + format check
 pnpm fix            # ultracite (Biome) auto-fix
 pnpm build          # eve build
-eve deploy          # deploy to Vercel production (use this, not raw `vercel deploy`)
 npx eve info        # print the discovered surface + discovery diagnostics
 pnpm validate       # check + typecheck + eve info in one command
 ```
@@ -40,19 +39,21 @@ There is no unit-test suite. **Verify changes with `pnpm validate` (lint, typech
 - TypeScript strict; ESM with `NodeNext` resolution (relative imports need a `.js` extension). Prefer `const`, arrow functions, optional chaining / nullish coalescing.
 - Validate tool input/output with `zod` schemas.
 - Document exported config with **TSDoc** (`@remarks`, `@param`, `@returns`, `@defaultValue`, `@see`). Avoid inline `//` comments — put rationale in the TSDoc block instead.
+- **`@ai-sdk/anthropic` and `@ai-sdk/openai` are pinned exactly, not with a caret.** Both packages depend on an exact `@ai-sdk/provider`, and so does `ai`. A caret range resolves a newer provider than `ai` pins, pnpm installs two copies, and `tsc` then rejects the model passed to `defineAgent` because the two `LanguageModelV4` types are structurally different. The pinned versions are the newest that share `ai`'s provider. Bump them only alongside `ai`, and run `pnpm typecheck` after.
 - Prose in markdown files is not hard-wrapped: write each paragraph or bullet as one line.
 - Agent-facing text (instructions, skill bodies, tool and subagent descriptions) follows the "How you write" rules in `agent/instructions.md`: no em dashes, no machine-made words, no bold for emphasis. It carries behavior only, never framework plumbing (sign-in flows, how approvals render) or references to tools and skills the reading agent can't access.
 
 ## Security
 
 - **Never ask the user for API keys, client secrets, or any other credentials.**
-- **Never commit secrets.** `.env*` is gitignored. Connector UIDs are read from env (`SLACK_CONNECTOR`, `SANITY_CONNECTOR`, `NOTION_CONNECTOR`); Sanity and Notion auth is per-user via Vercel Connect and Blob auth is via the project's OIDC token — there are no API keys in code.
+- **Never commit secrets.** `.env*` is gitignored except for `.env.example`, which lists every variable with an empty value. Every credential is an environment variable: `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` for the channel, `SANITY_API_TOKEN` and `NOTION_API_KEY` for the connections, and `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for the models. Both service tokens are shared rather than per-user, so scope each to what the copilot needs. Keys belong in env vars, never in source files.
 - If you ever build a `RegExp` from data, escape it (literal match) and bound the input length.
 - Gate irreversible or high-impact actions behind `approval`: destructive tools (`delete_asset`, `clear_user_preferences`) and connection writes (the `sanity` and `notion` connections gate the write tools listed above).
-- For per-user storage, derive the key from the resolved principal (`ctx.session.auth.current`), never from model input — see `agent/lib/user-preferences.ts`. The preference files live under the reserved `user-preferences/` Blob prefix, which the general asset tools refuse so they can't read or overwrite another user's file.
-- `download_asset` only fetches URLs on `*.blob.vercel-storage.com`.
+- For per-user storage, derive the key from the resolved principal (`ctx.session.auth.current`), never from model input — see `agent/lib/user-preferences.ts`. The preference files live under the reserved `user-preferences/` key prefix, which the general asset tools refuse so they can't read or overwrite another user's file.
+- **Assets are files on disk, so an asset key is a path.** `agent/lib/assets.ts` owns the only path builder: `assetPath` matches a model-supplied key against an anchored pattern and returns `null` for anything else, so `../` and a leading slash never reach a `join`. Never build an asset path any other way. An invalid key and a missing file both report not-found, so a probe learns nothing from the difference.
+- No tool fetches a model-supplied URL. If you add one, give it its own host allow list first: a server-side fetch on an arbitrary URL is an SSRF.
 
 ## Before committing
 
 - `pnpm validate` passes (Ultracite check, `tsc`, and `eve info` with 0 errors / 0 warnings).
-- No secrets, `node_modules`, or build output (`.eve`, `.vercel`, `.output`) staged.
+- No secrets, `node_modules`, stored assets (`data/`), or build output (`.eve`, `.output`) staged.

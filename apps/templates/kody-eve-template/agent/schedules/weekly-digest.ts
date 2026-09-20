@@ -10,8 +10,8 @@ const fromAddress = requireEnv("RESEND_FROM_ADDRESS", "kody@yourdomain.com");
  * MCP connection's email tools.
  *
  * @remarks
- * - Fires every Monday at 09:00 UTC (`"0 9 * * 1"`); on Vercel each schedule
- *   becomes a Vercel Cron Job and the expression is evaluated in UTC.
+ * - Fires every Monday at 09:00 UTC (`"0 9 * * 1"`); cron expressions are
+ *   evaluated in UTC wherever the agent runs.
  * - Runs in markdown task mode: the agent sends the email itself through the
  *   `resend` connection, which gives it control of the subject line. The
  *   chat-sdk Resend channel cannot set a subject on outbound-initiated

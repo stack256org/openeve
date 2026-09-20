@@ -11,7 +11,7 @@ A map of how this agent is put together, for humans and AI agents working in the
 
 ## Overview
 
-A Slack-based Sanity copilot built on the [eve](https://eve.dev) agent framework. Users @mention it to manage a Sanity project: querying content with GROQ, shaping schemas, creating and editing drafts, and managing releases, all through Sanity's MCP server as the signed-in user. Long-form pieces are drafted into Notion pages; generated files and assets live in Vercel Blob. The agent runs on Vercel, the same way locally (`eve dev`) and in production (`eve deploy`).
+A Slack-based Sanity copilot built on the [eve](https://eve.dev) agent framework. Users @mention it to manage a Sanity project: querying content with GROQ, shaping schemas, creating and editing drafts, and managing releases, all through Sanity's MCP server. Long-form pieces are drafted into Notion pages; generated files and assets live on the local filesystem under `EVE_DATA_DIR`. The agent runs the same way locally (`eve dev`) and in production, on any host with Node 24.
 
 eve discovers every capability from the filesystem under `agent/`. There is no central registry or wiring file: a tool's name is its filename, a connection's name is its filename, and so on.
 
@@ -22,26 +22,27 @@ agent/
   agent.ts                  # model configuration (defineAgent): compaction + session token limits
   instructions.md           # base system prompt / behavior
   channels/
-    slack.ts                # Slack surface; credentials via Vercel Connect
+    slack.ts                # Slack surface; SLACK_BOT_TOKEN + SLACK_SIGNING_SECRET
     eve.ts                  # inbound route auth; dev-only localDevUser shim (user principal)
   connections/
     sanity.ts               # Sanity MCP server, user-scoped OAuth; destructive tools approval-gated
     notion.ts               # Notion MCP server, user-scoped OAuth; update/move tools approval-gated
-  sandbox.ts                # sandbox backend (Vercel Sandbox)
+  sandbox.ts                # sandbox backend (Docker)
   subagents/
     researcher/             # agent.ts + instructions.md; fresh-context web researcher (web tools only)
     reviewer/               # agent.ts + instructions.md + own skills/writing-quality copy + sandbox.ts
   tools/
-    upload_asset.ts         # Vercel Blob: store text/binary
-    list_assets.ts          # Vercel Blob: browse
-    get_asset_info.ts       # Vercel Blob: metadata
-    download_asset.ts       # Vercel Blob: read back (Blob URLs only)
-    delete_asset.ts         # Vercel Blob: delete (approval-gated)
-    get_user_preferences.ts   # Blob: load this user's saved preferences
-    save_user_preferences.ts  # Blob: save standing preferences (principal-scoped)
-    clear_user_preferences.ts # Blob: clear this user's preferences (approval-gated)
+    upload_asset.ts         # asset store: write text/binary
+    list_assets.ts          # asset store: browse
+    get_asset_info.ts       # asset store: metadata
+    download_asset.ts       # asset store: read back (validated keys only)
+    delete_asset.ts         # asset store: delete (approval-gated)
+    get_user_preferences.ts   # load this user's saved preferences
+    save_user_preferences.ts  # save standing preferences (principal-scoped)
+    clear_user_preferences.ts # clear this user's preferences (approval-gated)
   lib/
-    user-preferences.ts     # principal-scoped Blob key + reserved-prefix guard (shared helper)
+    assets.ts               # data directory, anchored key validation, content types
+    user-preferences.ts     # principal-scoped asset key + reserved-prefix guard (shared helper)
   skills/                   # load-on-demand procedures, routed by description frontmatter
     sanity-best-practices/              # schemas, GROQ, TypeGen, functions, framework integrations
     content-modeling-best-practices/    # content types, references vs embedding, taxonomies
@@ -62,8 +63,8 @@ agent/
 | Skills              | `agent/skills/<name>/`                                                               | Skill            | Task-specific guidance (Sanity, content modeling, Portable Text in/out, SEO/AEO, experimentation, writing quality), loaded on demand                              |
 | Sanity access       | `agent/connections/sanity.ts`                                                        | Connection (MCP) | Query with GROQ, inspect schemas, create/edit drafts, manage releases as the signed-in user; destructive tools (`APPROVAL_REQUIRED_TOOLS`) are approval-gated     |
 | Notion access       | `agent/connections/notion.ts`                                                        | Connection (MCP) | Search/read/write Notion as the signed-in user; update/move tools are approval-gated, page creation is not                                                        |
-| Asset tools         | `agent/tools/{upload,list,get_asset_info,download,delete}_asset.ts`                  | Tools            | Store and manage files in Vercel Blob                                                                                                                             |
-| User preferences    | `agent/tools/{get,save,clear}_user_preferences.ts` + `agent/lib/user-preferences.ts` | Tools            | Per-user standing preferences in Blob, keyed to the resolved principal (never model input)                                                                        |
+| Asset tools         | `agent/tools/{upload,list,get_asset_info,download,delete}_asset.ts`                  | Tools            | Store and manage files under `EVE_DATA_DIR/assets`, addressed by validated keys                                                                                   |
+| User preferences    | `agent/tools/{get,save,clear}_user_preferences.ts` + `agent/lib/user-preferences.ts` | Tools            | Per-user standing preferences on disk, keyed to the resolved principal (never model input)                                                                        |
 | Researcher subagent | `agent/subagents/researcher/`                                                        | Subagent         | Fresh-context web research for facts the project's content doesn't hold; uses framework `web_search`/`web_fetch`, returns cited findings + gaps                   |
 | Reviewer subagent   | `agent/subagents/reviewer/`                                                          | Subagent         | Fresh-context, verdict-only review of a finished draft; loads the rubric from its own `writing-quality` skill copy, so the root passes only the draft and context |
 
@@ -73,36 +74,37 @@ Channels and the connections are I/O boundaries. Tools run in the app runtime (f
 
 - **Sanity** (external, user-owned): the CMS the copilot manages. All access goes through Sanity's MCP server; the agent never holds a shared Sanity credential and acts as each user via their own OAuth token.
 - **Notion** (external, user-owned): the destination for long-form drafts and the source for briefs and reference material. Also per-user OAuth, no shared credential.
-- **Vercel Blob**: object storage for exported drafts, images, and attachments. Authenticated by the project's OIDC token (no `BLOB_READ_WRITE_TOKEN`). Also holds per-user preferences under the reserved `user-preferences/<hashed-principal>.md` prefix, reachable only through the principal-scoped preference tools.
-- **Vercel Sandbox** (`/workspace/skills/...`): holds the seeded skill files the model reads. The reviewer subagent declares its own `sandbox.ts` because subagent sandboxes don't inherit from the root. Not a durable application data store.
+- **The asset store** (`<EVE_DATA_DIR>/assets`, defaulting to `./data/assets`): exported drafts, images, and attachments, addressed by key. Also holds per-user preferences under the reserved `user-preferences/<hashed-principal>.md` prefix, reachable only through the principal-scoped preference tools. Back up that one directory and the copilot's whole durable state moves with it.
+- **The sandbox** (`/workspace/skills/...`): holds the seeded skill files the model reads. The reviewer subagent declares its own `sandbox.ts` because subagent sandboxes don't inherit from the root. Not a durable application data store.
 
 There is no application database.
 
 ## External integrations
 
-| Integration       | Purpose                                           | Method                                                                                                                                                             |
-| ----------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Slack             | Chat surface (inbound events + outbound messages) | Vercel Connect connector (`SLACK_CONNECTOR`), webhook trigger at `/eve/v1/slack`                                                                                   |
-| Sanity (MCP)      | Query, edit, and release CMS content              | MCP connection to `mcp.sanity.io` with user-scoped OAuth via Vercel Connect (`SANITY_CONNECTOR`)                                                                   |
-| Notion (MCP)      | Read source material, write long-form drafts      | MCP connection to `mcp.notion.com` with user-scoped OAuth via Vercel Connect (`NOTION_CONNECTOR`)                                                                  |
-| Vercel Blob       | File/asset storage                                | `@vercel/blob`, OIDC-authenticated                                                                                                                                 |
-| Vercel AI Gateway | Model access                                      | Gateway model ids resolved through the linked project; the root model is set in `agent/agent.ts` and each subagent sets its own in `agent/subagents/<id>/agent.ts` |
-| Vercel Sandbox    | Isolated runtime that holds seeded skill files    | `agent/sandbox.ts` and the reviewer's own `sandbox.ts` (`vercel()` backend)                                                                                        |
+| Integration       | Purpose                                           | Method                                                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slack             | Chat surface (inbound events + outbound messages) | `SLACK_BOT_TOKEN` + `SLACK_SIGNING_SECRET`, with the app's request URL at `/eve/v1/slack`                                                                                                                               |
+| Sanity (MCP)      | Query, edit, and release CMS content              | MCP connection to `mcp.sanity.io` with an API token (`SANITY_API_TOKEN`)                                                                                                                                                |
+| Notion (MCP)      | Read source material, write long-form drafts      | MCP connection to `mcp.notion.com` with a workspace integration token (`NOTION_API_KEY`)                                                                                                                                |
+| Local filesystem  | File/asset storage                                | `node:fs/promises` under `EVE_DATA_DIR`, via `agent/lib/assets.ts`                                                                                                                                                      |
+| Anthropic, OpenAI | Model access                                      | `@ai-sdk/anthropic` and `@ai-sdk/openai` called directly, reading `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`; the root model is set in `agent/agent.ts` and each subagent sets its own in `agent/subagents/<id>/agent.ts` |
+| Docker            | Isolated runtime that holds seeded skill files    | `agent/sandbox.ts` and the reviewer's own `sandbox.ts` (`docker()` backend)                                                                                                                                             |
 
 ## Deployment & infrastructure
 
-- **Platform:** Vercel. Deploy with `eve deploy` (wraps `vercel deploy --prod`); the raw `vercel deploy` cannot auto-detect the eve framework.
-- **Connectors:** provisioned via the Deploy button or `vercel connect create` + `attach`; the Slack trigger must point at `/eve/v1/slack`.
-- **Environment:** `SLACK_CONNECTOR`, `SANITY_CONNECTOR`, and `NOTION_CONNECTOR` (connector UIDs) in the Vercel project; the model and Blob authenticate via the project's OIDC token.
-- **Local development:** `pnpm dev` runs the same runtime in a TUI; `vercel env pull` supplies a short-lived OIDC token. The Slack surface only runs against a deployment.
+- **Platform:** any host that runs Node 24 and can reach a Docker daemon. `pnpm build` produces the deployable bundle.
+- **Slack app:** install it in the workspace and point Event Subscriptions at `<your-host>/eve/v1/slack`.
+- **Environment:** `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `SANITY_API_TOKEN`, `NOTION_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and optionally `EVE_DATA_DIR`. `.env.example` lists all of them.
+- **Storage:** `EVE_DATA_DIR` (default `./data`) must be writable and should outlive the process, so mount a volume rather than relying on a container's filesystem.
+- **Local development:** `pnpm dev` runs the same runtime in a TUI, reading `.env.local`. The Slack surface needs a public URL, so use a tunnel or a deployment to exercise it.
 
 ## Security considerations
 
-- **Inbound route auth** (`agent/channels/eve.ts`): `[localDevUser, vercelOidc()]` rejects public browser traffic; Slack traffic is authenticated by its connector, which issues a per-user (`principalType: "user"`) principal. `localDevUser` defers the trust decision to the framework's `localDev()` and only upgrades the resolved dev principal to a user, so user-scoped connections work from the dev TUI without affecting production.
-- **Outbound auth:** Sanity and Notion are both per-user OAuth via Vercel Connect (tokens resolved per call, never exposed to the model); Blob uses the project OIDC token. No API keys live in code, and `.env*` is gitignored.
+- **Inbound route auth** (`agent/channels/eve.ts`): `localDevUser` plus HTTP Basic, and the Basic credential is only registered when `EVE_API_PASSWORD` is set, so an unset variable leaves the route closed rather than accepting an empty password. Slack traffic is authenticated by the channel's signing secret and carries a per-user (`principalType: "user"`) principal. `localDevUser` defers the trust decision to the framework's `localDev()` and only upgrades the resolved dev principal to a user, so the principal-scoped preference tools work from the dev TUI without affecting production.
+- **Outbound auth:** Sanity and Notion each authenticate with a static token read from the environment inside `getToken` (`SANITY_API_TOKEN`, `NOTION_API_KEY`), resolved per call and never exposed to the model. Both are shared rather than per-user, so scope each token to what the copilot actually needs. No credentials live in code, and `.env*` is gitignored except `.env.example`.
 - **Human-in-the-loop:** irreversible tool actions (`delete_asset`, `clear_user_preferences`) are gated with `approval` from `eve/tools/approval`. The Sanity connection gates its destructive tools (`patch_documents`, `publish_documents`, `unpublish_documents`, `discard_drafts`, `version_discard`, `update_dataset`, `deploy_schema`, `deploy_studio`) and the Notion connection gates its update/move tools (`notion-update-pages`, `notion-move-pages`, `notion-update-data-source`, `notion-update-view`) with per-connection `approval` policies. Each renders as a Slack approve/deny button.
-- **Input hardening:** `download_asset` only fetches `*.blob.vercel-storage.com` URLs (prevents SSRF, since the `url` is model-supplied).
-- **Per-user isolation:** the preference tools derive their Blob key from the resolved principal (`ctx.session.auth.current`), never from model input, so a session can only touch its own user's file; the id is hashed so the stored path carries no raw identifier. The general asset tools refuse the reserved `user-preferences/` prefix so they can't be used as a side channel. The Blob store is provisioned public, so preferences are scoped, not strongly confidential — use a private store if that matters.
+- **Input hardening:** asset keys are model-supplied and become real paths, so `agent/lib/assets.ts` matches every key against an anchored pattern and refuses anything else before a path is built; `../` and a leading slash never reach a `join`, and an invalid key is reported exactly like a missing file. No tool fetches a model-supplied URL, so there is no SSRF surface to allow-list.
+- **Per-user isolation:** the preference tools derive their key from the resolved principal (`ctx.session.auth.current`), never from model input, so a session can only touch its own user's file; the id is hashed so the stored path carries no raw identifier. The general asset tools refuse the reserved `user-preferences/` prefix so they can't be used as a side channel. The files sit in the same data directory as everything else, so preferences are scoped within the copilot, not encrypted at rest.
 
 ## Development & testing
 
@@ -127,5 +129,5 @@ There is no application database.
 - **Tool:** a typed action authored with `defineTool`, run in the app runtime.
 - **Skill:** a load-on-demand Markdown procedure; the packaged form requires `description` frontmatter used for routing. Here: seven skills covering Sanity work, content modeling, Portable Text conversion and serialization, SEO/AEO, experimentation, and writing quality.
 - **Subagent:** a declared agent under `agent/subagents/<id>/` that the root delegates to as a tool. It runs in its own fresh child session and inherits none of the root's skills, connections, or tools, so the root passes context in the call `message`. Here: `researcher` (web research) and `reviewer` (draft review, with its own skill copy and sandbox).
-- **Vercel Connect:** brokers OAuth/credentials for Slack, Sanity, and Notion; connectors are identified by a UID.
-- **OIDC:** the project's Vercel identity token, used to authenticate Blob (and AI Gateway) without static keys.
+- **Asset key:** the identifier for a stored file, a relative path such as `drafts/post.md`. Validated against an anchored pattern in `agent/lib/assets.ts` before it becomes a real path.
+- **`EVE_DATA_DIR`:** the single directory holding everything durable the copilot writes, defaulting to `./data`.

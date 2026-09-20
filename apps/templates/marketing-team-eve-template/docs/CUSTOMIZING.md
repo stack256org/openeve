@@ -8,7 +8,7 @@ Run `pnpm validate` after any change, and `npx eve info` to see what eve discove
 
 | To change               | Edit                                                                                                                                        |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Brand context           | Ask the lead; it routes to `product-marketer`. Stored in Blob, not the repo                                                                 |
+| Brand context           | Ask the lead; it routes to `product-marketer`. Stored under `EVE_DATA_DIR`, not the repo                                                    |
 | Voice, all surfaces     | `agent/lib/writing-quality/config.ts`                                                                                                       |
 | Voice, one surface      | `agent/subagents/<id>/skills/<surface>-style/`                                                                                              |
 | Banned words            | `references/banned-words.json` in that style skill                                                                                          |
@@ -102,22 +102,17 @@ Bound every string with `.max()`, describe every field, and gate irreversible to
 
 ```ts
 // agent/subagents/pr/connections/linear.ts
-import { connect } from "@vercel/connect/eve";
 import { defineMcpClientConnection } from "eve/connections";
 
 export default defineMcpClientConnection({
-  auth: connect(process.env.LINEAR_CONNECTOR ?? "linear/marketing-team"),
+  auth: { getToken: async () => ({ token: process.env.LINEAR_API_KEY! }) },
   description: "Linear workspace: issues, projects, and comments.",
   tools: { allow: ["search_issues", "get_issue"] },
   url: "https://mcp.linear.app/mcp",
 });
 ```
 
-Create the connector and put the UID it prints into the env var:
-
-```bash
-vercel connect create linear --name marketing-team
-```
+Mint the token in the service's own dashboard, then add it to `.env.local` with a real value and to `.env.example` with an empty one.
 
 Use `tools.allow` when the server publishes more than the job needs, and gate writes with `approval`.
 

@@ -50,7 +50,7 @@ export default defineMcpClientConnection({
   /**
    * Typefully's MCP server authenticates with a static API key. `getToken` runs on each
    * connection attempt and reads the key from the `TYPEFULLY_API_KEY` environment variable —
-   * set it in the Vercel project (and `.env.local` for `pnpm dev`). eve sends the key as
+   * set it wherever the agent runs (and in `.env.local` for `pnpm dev`). eve sends the key as
    * `Authorization: Bearer <token>`. With `getToken`-only auth the connection is app-scoped:
    * one shared Typefully workspace credential across all Slack users.
    */
