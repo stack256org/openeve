@@ -6,7 +6,7 @@ type: integration
 
 The Linear channel uses Linear's Agent Session surface rather than ordinary comments. Users delegate work to the agent from Linear, eve receives `AgentSessionEvent` webhooks at `/eve/v1/linear`, and the channel replies with native Agent Activities, including `thought`, `action`, `elicitation`, `response`, and `error`. Credentials can run through [Vercel Connect](../guides/auth-and-route-protection), which manages the Linear app, its access token, and inbound webhook verification, so there's no API key or webhook secret for you to hold. See [Channels](./overview) for the contract this builds on.
 
-## Guided Connect setup
+## Guided setup
 
 Run the registry setup from the agent directory:
 
@@ -14,13 +14,15 @@ Run the registry setup from the agent directory:
 eve add channel/linear
 ```
 
+The flow first asks how to configure Linear. **Use portable credentials** is the default and works on any host: eve writes a credential-free `agent/channels/linear.ts` and adds `LINEAR_AGENT_ACCESS_TOKEN` and `LINEAR_WEBHOOK_SECRET` to `.env.example` for you to fill in against your own Linear app, as described in [Bring your own Linear app](#bring-your-own-linear-app). Choose **Set up Vercel Connect** for the managed flow below.
+
 To let the agent search and update Linear through MCP, install the separate Linear connection:
 
 ```bash
 eve add connection/linear
 ```
 
-The channel setup flow signs you in to Vercel when needed, creates or links a Vercel project, reuses a compatible existing connector when available or provisions an app-scoped Linear Connect client, and registers `/eve/v1/linear` as a trigger destination. It then installs `@vercel/connect` and writes `agent/channels/linear.ts` with the connector UID.
+The Vercel Connect branch signs you in to Vercel when needed, creates or links a Vercel project, reuses a compatible existing connector when available or provisions an app-scoped Linear Connect client, and registers `/eve/v1/linear` as a trigger destination. It then installs `@vercel/connect` and writes `agent/channels/linear.ts` with the connector UID.
 
 Vercel Connect creates the Linear app with the `app:assignable` and `app:mentionable` scopes required for Agent Sessions, receives and verifies `AgentSessionEvent` webhooks, and forwards them to the deployed agent. After deploying, open the Linear app in the Connect dashboard and install it in the workspace where you want to delegate work. Then delegate an issue or mention the agent in a Linear Agent Session.
 

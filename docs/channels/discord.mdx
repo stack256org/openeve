@@ -14,19 +14,26 @@ Run the guided setup from your eve project:
 pnpm eve add channel/discord
 ```
 
-The setup guides you through creating a Discord application and bot, then:
+The setup first asks how to configure Discord. **Use portable credentials** is the default and works on any host: eve validates the bot token, registers the application command, scaffolds a credential-free channel, and writes `DISCORD_APPLICATION_ID`, `DISCORD_BOT_TOKEN`, and `DISCORD_PUBLIC_KEY` to `.env.local`. You then point the application's Interactions Endpoint URL at your deployed `https://…/eve/v1/discord`.
+
+```ts title="agent/channels/discord.ts"
+import { discordChannel } from "eve/channels/discord";
+
+export default discordChannel();
+```
+
+Choose **Set up Vercel Connect** instead and the setup also:
 
 - signs you in to Vercel and creates or links a project when needed;
-- validates the bot token;
 - creates a Vercel Connect client and attaches `/eve/v1/discord` as its trigger destination;
-- registers an application command with a required `message` option;
-- configures the Discord application's Interactions Endpoint URL;
-- scaffolds the channel with Connect-managed credentials; and
-- prints the bot installation URL.
+- configures the Discord application's Interactions Endpoint URL; and
+- scaffolds the channel with Connect-managed credentials.
+
+Either way the setup guides you through creating a Discord application and bot, registers an application command with a required `message` option, and prints the bot installation URL.
 
 The command defaults to `/ask` with the description **Ask the eve agent**. You can edit both during setup. Discord global commands can take up to an hour to appear after registration.
 
-The generated channel looks like this:
+The Connect-managed channel looks like this:
 
 ```ts title="agent/channels/discord.ts"
 import { connectDiscordCredentials } from "@vercel/connect/eve";

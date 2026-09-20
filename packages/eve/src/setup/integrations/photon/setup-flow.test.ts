@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFakePrompter } from "#internal/testing/fake-prompter.js";
-import { headlessAsker, InteractionRequired, withAnswers } from "#setup/ask.js";
+import { headlessAsker, InteractionRequired, withAnswers, withPolicy } from "#setup/ask.js";
 import { integrationSetupEnvironment } from "../shared/environment.js";
 import { createSetupContexts } from "../shared/ui.js";
 import { applyPhotonSetup, preparePhotonSetup, type PhotonSetupDeps } from "./setup-flow.js";
@@ -31,10 +31,12 @@ function contexts(
   answers: Record<string, unknown>,
   auth: "authenticated" | "cli-missing" = "authenticated",
   resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" })),
+  assume = false,
 ) {
+  const base = headlessAsker();
   return createSetupContexts({
     appRoot: "/project",
-    asker: withAnswers(answers)(headlessAsker()),
+    asker: withAnswers(answers)(assume ? withPolicy("assume")(base) : base),
     environment: integrationSetupEnvironment(auth, { kind: "unresolved" }),
     prompter: createFakePrompter().prompter,
     resolveVercelProject,
@@ -52,6 +54,21 @@ describe("Photon setup", () => {
     ).rejects.toBeInstanceOf(InteractionRequired);
     expect(effects.provisionProject).not.toHaveBeenCalled();
     expect(effects.writeTextFile).not.toHaveBeenCalled();
+  });
+  it("recommends portable credentials", async () => {
+    const effects = deps();
+    const resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" }));
+    const ctx = contexts(
+      { "photon-project-source": "create", "photon-phone-number": "+15551234567" },
+      "authenticated",
+      resolveVercelProject,
+      true,
+    );
+
+    await expect(preparePhotonSetup(ctx.prepare, effects)).resolves.toMatchObject({
+      credentials: "environment",
+    });
+    expect(resolveVercelProject).not.toHaveBeenCalled();
   });
   it("applies a portable plan", async () => {
     const effects = deps();

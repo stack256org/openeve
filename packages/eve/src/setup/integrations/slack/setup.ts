@@ -16,6 +16,7 @@ import {
 import { slackMessageDeepLink } from "#setup/slack-connect.js";
 import { WizardCancelledError } from "#setup/step.js";
 
+import { askPortableCredentials } from "../shared/portable-credentials.js";
 import { installScaffoldDependencies, reportOverwrittenFiles } from "../shared/scaffold.js";
 import {
   defineSetupIntegration,
@@ -131,28 +132,12 @@ export async function prepareSlackSetup(
   context: SetupPrepareContext,
   deps: SlackSetupDeps = defaultDeps,
 ): Promise<SlackSetupPlan> {
-  const credentials = await context.asker.ask(
-    select({
-      key: "slack-credentials",
-      message: "How would you like to configure Slack?",
-      options: [
-        {
-          id: "vercel",
-          value: "vercel-connect" as const,
-          label: "Set up Vercel Connect",
-          hint: "Use a linked Vercel project",
-        },
-        {
-          id: "portable",
-          value: "environment" as const,
-          label: "Use portable credentials",
-          hint: "Read Slack tokens from environment variables",
-        },
-      ],
-      recommended: "vercel-connect" as const,
-      required: true,
-    }),
-  );
+  const credentials = await askPortableCredentials(context, {
+    key: "slack-credentials",
+    label: "Slack",
+    connectHint: "Use a linked Vercel project",
+    portableHint: "Read Slack tokens from environment variables",
+  });
   const slug = await deps.deriveSlackConnectorSlug(context.appRoot);
   if (credentials === "environment") return { credentials, slug };
   const project = await context.resolveVercelProject("Slack");

@@ -1,11 +1,12 @@
 import { basename, join } from "node:path";
 
-import { select, text } from "../../ask.js";
+import { text } from "../../ask.js";
 import { appendEnv } from "../../append-env.js";
 import type { VercelProjectReference } from "../../project-resolution.js";
 import { openUrl } from "../../primitives/open-url.js";
 import { deriveSlackConnectorSlug } from "../../scaffold/index.js";
 import { writeTextFile } from "../../scaffold/files.js";
+import { askPortableCredentials, writePortableEnv } from "../shared/portable-credentials.js";
 import type { SetupApplyContext, SetupPrepareContext } from "../types.js";
 import { provisionPhotonConnector } from "./connect.js";
 import {
@@ -78,31 +79,12 @@ export async function preparePhotonSetup(
   deps: PhotonSetupDeps = defaultDeps,
 ): Promise<PhotonSetupPlan> {
   const agentName = basename(context.appRoot);
-  const credentials = await context.asker.ask(
-    select({
-      key: "photon-credentials",
-      message: "How would you like to configure Photon?",
-      options: [
-        {
-          id: "vercel",
-          value: "vercel-connect" as const,
-          label: "Set up Vercel Connect",
-          hint: "Use a linked Vercel project",
-        },
-        {
-          id: "portable",
-          value: "environment" as const,
-          label: "Use portable credentials",
-          hint: "Configure the Photon webhook manually after deployment",
-        },
-      ],
-      recommended:
-        context.environment.vercel.kind === "available"
-          ? ("vercel-connect" as const)
-          : ("environment" as const),
-      required: true,
-    }),
-  );
+  const credentials = await askPortableCredentials(context, {
+    key: "photon-credentials",
+    label: "Photon",
+    connectHint: "Use a linked Vercel project",
+    portableHint: "Configure the Photon webhook manually after deployment",
+  });
   const defaultName = `eve · ${agentName || "agent"}`;
   const project = await context.asker.askEditable({
     key: "photon-project-source",
@@ -237,11 +219,17 @@ export async function applyPhotonSetup(
         force: context.force,
       });
     } else {
-      await deps.appendEnv(join(context.projectRoot, ".env.local"), {
-        IMESSAGE_PROJECT_ID: managedProject.projectId,
-        IMESSAGE_PROJECT_SECRET: managedProject.projectSecret,
-      });
       await deps.writeTextFile(channelPath, PORTABLE_TEMPLATE, { force: context.force });
+      await writePortableEnv(
+        {
+          environmentRoot: context.projectRoot,
+          values: {
+            IMESSAGE_PROJECT_ID: managedProject.projectId,
+            IMESSAGE_PROJECT_SECRET: managedProject.projectSecret,
+          },
+        },
+        { appendEnv: deps.appendEnv },
+      );
       context.presenter.nextSteps([
         "Deploy the agent, then create a Photon webhook pointing to https://<your-host>/eve/v1/photon.",
         "Copy the webhook signing secret into IMESSAGE_WEBHOOK_SECRET, alongside IMESSAGE_PROJECT_ID and IMESSAGE_PROJECT_SECRET, in your host's encrypted environment variables.",

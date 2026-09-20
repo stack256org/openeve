@@ -181,8 +181,14 @@ __EVE_INIT_REASONING__  modelOptions: {
 });
 `;
 
-function packageJsonTemplate(includeRootOnlyFields: boolean): string {
-  const rootOnlyFields = includeRootOnlyFields ? ROOT_ONLY_PACKAGE_JSON_TEMPLATE_SUFFIX : "";
+function packageJsonTemplate(input: {
+  includeRootOnlyFields: boolean;
+  vercelConnect: boolean;
+}): string {
+  const rootOnlyFields = input.includeRootOnlyFields ? ROOT_ONLY_PACKAGE_JSON_TEMPLATE_SUFFIX : "";
+  const connectDependency = input.vercelConnect
+    ? `    "@vercel/connect": "__EVE_INIT_CONNECT_VERSION__",\n`
+    : "";
   return `{
   "name": "__EVE_INIT_APP_NAME__",
   "version": "0.0.0",
@@ -200,8 +206,7 @@ function packageJsonTemplate(includeRootOnlyFields: boolean): string {
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@vercel/connect": "__EVE_INIT_CONNECT_VERSION__",
-    "ai": "__EVE_INIT_AI_SDK_VERSION__",
+${connectDependency}    "ai": "__EVE_INIT_AI_SDK_VERSION__",
     "eve": "__EVE_INIT_PACKAGE_VERSION__",
     "zod": "__EVE_INIT_ZOD_VERSION__"
   },
@@ -366,11 +371,15 @@ Run the validation the task requests. When it does not establish the behavior yo
 function templateFiles(input: {
   byokProvider: boolean;
   includeRootOnlyPackageJsonFields: boolean;
+  vercelConnect: boolean;
 }): Record<string, string> {
   return {
     "agent/agent.ts": input.byokProvider ? BYOK_AGENT_TEMPLATE : BASE_AGENT_TEMPLATE,
     ...SHARED_TEMPLATE_FILES,
-    "package.json": packageJsonTemplate(input.includeRootOnlyPackageJsonFields),
+    "package.json": packageJsonTemplate({
+      includeRootOnlyFields: input.includeRootOnlyPackageJsonFields,
+      vercelConnect: input.vercelConnect,
+    }),
   };
 }
 
@@ -424,6 +433,12 @@ export interface ScaffoldBaseProjectOptions {
    * AI Gateway. `process` is typed by the `@types/node` every scaffold ships.
    */
   byokProvider?: boolean;
+  /**
+   * Declare `@vercel/connect` as a dependency. Off by default so a scaffold
+   * runs on any host; the Connect branch of a channel or connection setup adds
+   * the package when it is actually chosen.
+   */
+  vercelConnect?: boolean;
 }
 
 export async function scaffoldBaseProject(options: ScaffoldBaseProjectOptions): Promise<string> {
@@ -452,9 +467,6 @@ export async function scaffoldBaseProject(options: ScaffoldBaseProjectOptions): 
       "aiPackageVersion",
       options.aiPackageVersion ?? DEFAULT_AI_PACKAGE_VERSION,
     ),
-    // Channels and connections scaffolded later (`eve add channel/slack`,
-    // possibly while `eve dev` is running) import `@vercel/connect`; shipping
-    // it from init means adding them never introduces a missing dependency.
     connectPackageVersion: resolveVersionToken(
       "connectPackageVersion",
       options.connectPackageVersion ?? DEFAULT_CONNECT_PACKAGE_VERSION,
@@ -477,6 +489,7 @@ export async function scaffoldBaseProject(options: ScaffoldBaseProjectOptions): 
     templateFiles({
       byokProvider,
       includeRootOnlyPackageJsonFields: !workspaceMember,
+      vercelConnect: options.vercelConnect ?? false,
     }),
   )) {
     const filePath = `${targetRoot}/${relPath}`;

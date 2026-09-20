@@ -9,19 +9,30 @@ import { writeTextFile } from "#setup/scaffold/files.js";
 import { provisionLinqConnector, type LinqExistingAccountCredentials } from "./connect.js";
 import { listLinqPhoneNumbers } from "./management.js";
 import {
+  askPortableCredentials,
+  writePortableEnv,
+  type CredentialChoice,
+} from "../shared/portable-credentials.js";
+import {
   defineSetupIntegration,
   type SetupApplyContext,
   type SetupPrepareContext,
 } from "../types.js";
 
 export interface LinqSetupDeps {
+  appendEnv: typeof appendEnv;
   listPhoneNumbers: typeof listLinqPhoneNumbers;
+  writeTextFile: typeof writeTextFile;
 }
 
-const defaultDeps: LinqSetupDeps = { listPhoneNumbers: listLinqPhoneNumbers };
+const defaultDeps: LinqSetupDeps = {
+  appendEnv,
+  listPhoneNumbers: listLinqPhoneNumbers,
+  writeTextFile,
+};
 
 interface LinqSetupPlan {
-  credentials: "connect" | "portable";
+  credentials: CredentialChoice;
   connectorSlug?: string;
   existingAccount?: LinqExistingAccountCredentials;
   project?: VercelProjectReference;
@@ -53,32 +64,14 @@ export async function prepareLinqSetup(
   context: SetupPrepareContext,
   deps: LinqSetupDeps = defaultDeps,
 ): Promise<LinqSetupPlan> {
-  const credentials = await context.asker.ask(
-    select({
-      key: "linq-credentials",
-      message: "How would you like to configure Linq?",
-      options: [
-        {
-          id: "connect",
-          value: "connect" as const,
-          label: "Set up Vercel Connect",
-          hint: "Provision a managed Linq line",
-        },
-        {
-          id: "portable",
-          value: "portable" as const,
-          label: "Use portable credentials",
-          hint: "Register the webhook in Linq",
-        },
-      ],
-      recommended:
-        context.environment.vercel.kind === "available"
-          ? ("connect" as const)
-          : ("portable" as const),
-      required: true,
-    }),
-  );
-  if (credentials === "connect") {
+  const credentials = await askPortableCredentials(context, {
+    key: "linq-credentials",
+    label: "Linq",
+    connectHint: "Provision a managed Linq line",
+    portableHint: "Register the webhook in Linq",
+    connectOptionId: "connect",
+  });
+  if (credentials === "vercel-connect") {
     if (context.environment.vercel.kind === "unavailable") {
       throw new Error(
         "Vercel Connect requires an authenticated Vercel CLI. Run `vercel login`, then retry Linq setup.",
@@ -169,10 +162,14 @@ export async function prepareLinqSetup(
   return { credentials, apiKey: apiKey.trim(), signingSecret: signingSecret.trim() };
 }
 
-export async function applyLinqSetup(plan: LinqSetupPlan, context: SetupApplyContext) {
+export async function applyLinqSetup(
+  plan: LinqSetupPlan,
+  context: SetupApplyContext,
+  deps: LinqSetupDeps = defaultDeps,
+) {
   const path = join(context.appRoot, "agent/channels/linq.ts");
   let phoneNumber: string | undefined;
-  if (plan.credentials === "connect") {
+  if (plan.credentials === "vercel-connect") {
     const connectorInput: Parameters<typeof provisionLinqConnector>[0] = {
       log: context.presenter.log,
       project: plan.project!,
@@ -185,16 +182,19 @@ export async function applyLinqSetup(plan: LinqSetupPlan, context: SetupApplyCon
     }
     const connector = await provisionLinqConnector(connectorInput);
     phoneNumber = connector.phoneNumber;
-    await writeTextFile(path, connectTemplate(connector.uid), { force: context.force });
+    await deps.writeTextFile(path, connectTemplate(connector.uid), { force: context.force });
     if (phoneNumber !== undefined) {
       context.presenter.note(phoneNumber, "Text your agent", { tone: "success" });
     }
   } else {
-    await appendEnv(join(context.projectRoot, ".env.local"), {
-      LINQ_API_KEY: plan.apiKey!,
-      LINQ_WEBHOOK_SECRET: plan.signingSecret!,
-    });
-    await writeTextFile(path, portableTemplate, { force: context.force });
+    await deps.writeTextFile(path, portableTemplate, { force: context.force });
+    await writePortableEnv(
+      {
+        environmentRoot: context.projectRoot,
+        values: { LINQ_API_KEY: plan.apiKey!, LINQ_WEBHOOK_SECRET: plan.signingSecret! },
+      },
+      { appendEnv: deps.appendEnv },
+    );
     context.presenter.nextSteps([
       "Deploy the agent, then create a Linq webhook subscription for https://<your-host>/eve/v1/linq with message.received, reaction.added, and reaction.removed events.",
     ]);

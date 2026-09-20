@@ -1,11 +1,13 @@
 import { join } from "node:path";
 
+import { appendEnv } from "#setup/append-env.js";
 import { text } from "#setup/ask.js";
 import type { VercelProjectReference } from "#setup/project-resolution.js";
 import { runVercel, runVercelCaptureStdout } from "#setup/primitives/run-vercel.js";
 import { writeTextFile } from "#setup/scaffold/files.js";
 
 import { provisionTeamsConnector } from "./connect.js";
+import { askPortableCredentials, writePortableEnv } from "../shared/portable-credentials.js";
 import {
   defineSetupIntegration,
   type SetupApplyContext,
@@ -13,6 +15,7 @@ import {
 } from "../types.js";
 
 export interface TeamsSetupDeps {
+  appendEnv: typeof appendEnv;
   provisionConnector: typeof provisionTeamsConnector;
   runVercel: typeof runVercel;
   runVercelCaptureStdout: typeof runVercelCaptureStdout;
@@ -20,11 +23,17 @@ export interface TeamsSetupDeps {
 }
 
 const defaultDeps: TeamsSetupDeps = {
+  appendEnv,
   provisionConnector: provisionTeamsConnector,
   runVercel,
   runVercelCaptureStdout,
   writeTextFile,
 };
+
+const PORTABLE_TEMPLATE = `import { teamsChannel } from "eve/channels/teams";
+
+export default teamsChannel();
+`;
 
 function connectTemplate(uid: string): string {
   return `import { connectTeamsCredentials } from "@vercel/connect/eve";
@@ -36,12 +45,18 @@ export default teamsChannel({
 `;
 }
 
-export interface TeamsSetupPlan {
-  name: string;
-  project: VercelProjectReference;
-}
+export type TeamsSetupPlan =
+  | { credentials: "environment" }
+  | { credentials: "vercel-connect"; name: string; project: VercelProjectReference };
 
 export async function prepareTeamsSetup(context: SetupPrepareContext): Promise<TeamsSetupPlan> {
+  const credentials = await askPortableCredentials(context, {
+    key: "teams-credentials",
+    label: "Microsoft Teams",
+    connectHint: "Vercel Connect manages the Teams app and its installation",
+    portableHint: "Bring your own Azure Bot and read its credentials from the environment",
+  });
+  if (credentials === "environment") return { credentials };
   const name = await context.asker.ask(
     text({
       key: "teams.bot-name",
@@ -52,7 +67,7 @@ export async function prepareTeamsSetup(context: SetupPrepareContext): Promise<T
     }),
   );
   const project = await context.resolveVercelProject("Microsoft Teams");
-  return { name: name.trim(), project };
+  return { credentials, name: name.trim(), project };
 }
 
 export async function applyTeamsSetup(
@@ -60,18 +75,32 @@ export async function applyTeamsSetup(
   context: SetupApplyContext,
   deps: TeamsSetupDeps = defaultDeps,
 ) {
+  const channelPath = join(context.appRoot, "agent/channels/teams.ts");
+  if (plan.credentials === "environment") {
+    await deps.writeTextFile(channelPath, PORTABLE_TEMPLATE, { force: context.force });
+    await writePortableEnv(
+      {
+        environmentRoot: context.projectRoot,
+        values: { MICROSOFT_APP_ID: "", MICROSOFT_APP_PASSWORD: "", MICROSOFT_TENANT_ID: "" },
+      },
+      { appendEnv: deps.appendEnv },
+    );
+    context.presenter.log.success("Scaffolded channel: teams");
+    context.presenter.nextSteps([
+      "Register an Azure Bot, then set MICROSOFT_APP_ID and MICROSOFT_APP_PASSWORD (listed in .env.example) in your host's environment. MICROSOFT_TENANT_ID is only needed for a single-tenant bot.",
+      "Point the bot's messaging endpoint at https://<your-host>/eve/v1/teams, then mention the bot in a channel or send it a personal message.",
+    ]);
+    return { facts: [], deploymentRequired: true as const };
+  }
   const connector = await deps.provisionConnector({
-    ...plan,
+    name: plan.name,
+    project: plan.project,
     log: context.presenter.log,
     projectRoot: context.projectRoot,
     signal: context.signal,
     deps,
   });
-  await deps.writeTextFile(
-    join(context.appRoot, "agent/channels/teams.ts"),
-    connectTemplate(connector.uid),
-    { force: context.force },
-  );
+  await deps.writeTextFile(channelPath, connectTemplate(connector.uid), { force: context.force });
   context.presenter.log.success("Scaffolded channel: teams");
   context.presenter.nextSteps([
     "Deploy the agent.",

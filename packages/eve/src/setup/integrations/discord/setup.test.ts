@@ -9,9 +9,11 @@ const ANSWERS = {
   "discord-bot-token": " bot-token ",
   "discord-command-name": "ask",
   "discord-command-description": "Ask the eve agent",
+  "discord-credentials": "vercel",
 };
 function deps(): DiscordSetupDeps {
   return {
+    appendEnv: vi.fn(async () => ({ written: [], skipped: [] })),
     configureEndpoint: vi.fn(async () => {}),
     deriveConnectorSlug: vi.fn(async () => "agent" as never),
     provisionConnector: vi.fn(async () => ({ id: "connector", uid: "discord/agent" })),
@@ -50,10 +52,38 @@ describe("Discord setup", () => {
   });
   it("refuses missing input before mutation", async () => {
     const effects = deps();
-    await expect(prepareDiscordSetup(contexts({}).prepare, effects)).rejects.toMatchObject({
+    await expect(
+      prepareDiscordSetup(contexts({ "discord-credentials": "vercel" }).prepare, effects),
+    ).rejects.toMatchObject({
       prerequisite: { kind: "environment", variable: "DISCORD_BOT_TOKEN" },
     });
     expect(effects.resolveApplication).not.toHaveBeenCalled();
+  });
+  it("scaffolds portable credentials without a Vercel project", async () => {
+    const effects = deps();
+    const resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" }));
+    const ctx = contexts(
+      { ...ANSWERS, "discord-credentials": "portable" },
+      resolveVercelProject,
+      "logged-out",
+    );
+
+    const plan = await prepareDiscordSetup(ctx.prepare, effects);
+    await applyDiscordSetup(plan, ctx.apply, effects);
+
+    expect(resolveVercelProject).not.toHaveBeenCalled();
+    expect(effects.provisionConnector).not.toHaveBeenCalled();
+    expect(effects.configureEndpoint).not.toHaveBeenCalled();
+    expect(effects.writeTextFile).toHaveBeenCalledWith(
+      "/project/agent/channels/discord.ts",
+      expect.not.stringContaining("@vercel/connect"),
+      { force: undefined },
+    );
+    expect(effects.appendEnv).toHaveBeenCalledWith("/project/.env.local", {
+      DISCORD_APPLICATION_ID: "app",
+      DISCORD_BOT_TOKEN: "bot-token",
+      DISCORD_PUBLIC_KEY: "key",
+    });
   });
   it("requires a linked project", async () => {
     const effects = deps();

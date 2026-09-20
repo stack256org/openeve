@@ -35,6 +35,12 @@ export interface AddAgentToProjectOptions {
   aiPackageVersion?: string;
   connectPackageVersion?: string;
   zodPackageVersion?: string;
+  /**
+   * Declare `@vercel/connect` as a dependency. Off by default so the added
+   * agent runs on any host; the Connect branch of a channel or connection
+   * setup adds the package when it is actually chosen.
+   */
+  vercelConnect?: boolean;
 }
 
 export interface AddAgentToProjectResult {
@@ -120,9 +126,6 @@ export async function addAgentToProject(
     "aiPackageVersion",
     options.aiPackageVersion ?? DEFAULT_AI_PACKAGE_VERSION,
   );
-  // Channels and connections scaffolded later (`eve add channel/slack`,
-  // possibly while `eve dev` is running) import `@vercel/connect`; shipping
-  // it from init means adding them never introduces a missing dependency.
   const connectVersion = resolveVersionToken(
     "connectPackageVersion",
     options.connectPackageVersion ?? DEFAULT_CONNECT_PACKAGE_VERSION,
@@ -140,11 +143,11 @@ export async function addAgentToProject(
   }
 
   const wanted: Record<string, string> = {
-    "@vercel/connect": connectVersion,
     ai: aiVersion,
     eve: formatEveDependencySpecifier(evePackage.version),
     zod: zodVersion,
   };
+  if (options.vercelConnect === true) wanted["@vercel/connect"] = connectVersion;
   const additions: Record<string, string> = {};
   for (const [name, version] of Object.entries(wanted)) {
     if (!hasDeclaredDependency(packageJson, name)) {

@@ -8,6 +8,7 @@ import { applyTeamsSetup, prepareTeamsSetup, type TeamsSetupDeps } from "./setup
 
 function deps(): TeamsSetupDeps {
   return {
+    appendEnv: vi.fn(async () => ({ written: [], skipped: [] })),
     provisionConnector: vi.fn(async () => ({
       id: "scl_teams",
       uid: "microsoft-teams/agent",
@@ -18,20 +19,23 @@ function deps(): TeamsSetupDeps {
   };
 }
 
-function contexts(answers: Record<string, unknown>) {
+function contexts(
+  answers: Record<string, unknown>,
+  resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" })),
+) {
   return createSetupContexts({
     appRoot: "/project",
     asker: withAnswers(answers)(headlessAsker()),
     environment: integrationSetupEnvironment("authenticated", { kind: "unresolved" }),
     prompter: createFakePrompter().prompter,
-    resolveVercelProject: vi.fn(async () => ({ orgId: "team", projectId: "project" })),
+    resolveVercelProject,
   });
 }
 
 describe("Microsoft Teams setup", () => {
   it("delegates setup to the Connect CLI and scaffolds its connector", async () => {
     const effects = deps();
-    const ctx = contexts({ "teams.bot-name": " Agent " });
+    const ctx = contexts({ "teams-credentials": "vercel", "teams.bot-name": " Agent " });
 
     const plan = await prepareTeamsSetup(ctx.prepare);
     expect(effects.provisionConnector).not.toHaveBeenCalled();
@@ -50,5 +54,27 @@ describe("Microsoft Teams setup", () => {
       expect.stringContaining('connectTeamsCredentials("microsoft-teams/agent")'),
       { force: undefined },
     );
+  });
+
+  it("scaffolds portable credentials without a Vercel project", async () => {
+    const effects = deps();
+    const resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" }));
+    const ctx = contexts({ "teams-credentials": "portable" }, resolveVercelProject);
+
+    const plan = await prepareTeamsSetup(ctx.prepare);
+    await applyTeamsSetup(plan, ctx.apply, effects);
+
+    expect(resolveVercelProject).not.toHaveBeenCalled();
+    expect(effects.provisionConnector).not.toHaveBeenCalled();
+    expect(effects.writeTextFile).toHaveBeenCalledWith(
+      "/project/agent/channels/teams.ts",
+      expect.not.stringContaining("@vercel/connect"),
+      { force: undefined },
+    );
+    expect(effects.appendEnv).toHaveBeenCalledWith("/project/.env.example", {
+      MICROSOFT_APP_ID: "",
+      MICROSOFT_APP_PASSWORD: "",
+      MICROSOFT_TENANT_ID: "",
+    });
   });
 });

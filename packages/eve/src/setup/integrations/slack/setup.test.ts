@@ -52,9 +52,19 @@ function contexts(
 }
 
 describe("Slack setup", () => {
-  it("accepts recommendations before apply", async () => {
+  it("recommends portable credentials", async () => {
     const effects = deps();
     const ctx = contexts({}, true);
+    const plan = await prepareSlackSetup(ctx.prepare, effects);
+    await applySlackSetup(plan, ctx.apply, effects);
+    expect(effects.provisionSlackbot).not.toHaveBeenCalled();
+    expect(effects.ensureChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ slackCredentials: "environment" }),
+    );
+  });
+  it("accepts recommendations before apply", async () => {
+    const effects = deps();
+    const ctx = contexts({ "slack-credentials": "vercel" }, true);
     const plan = await prepareSlackSetup(ctx.prepare, effects);
     expect(effects.provisionSlackbot).not.toHaveBeenCalled();
     await applySlackSetup(plan, ctx.apply, effects);

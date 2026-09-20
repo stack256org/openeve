@@ -1068,10 +1068,10 @@ describe("scaffoldBaseProject", () => {
     expect(readme).not.toContain("__EVE_INIT_");
     const packageJson = await readFile(join(projectRoot, "package.json"), "utf8");
     expect(packageJson).toContain('"eve": "^0.25.0"');
-    // Channels added later (`eve add channel/slack`, possibly next to a
-    // running `eve dev`) import @vercel/connect; init ships it so a later
-    // channel add never introduces a missing dependency.
-    expect(packageJson).toContain('"@vercel/connect": "0.2.2"');
+    // A scaffold runs on any host, so it declares no Vercel dependency. The
+    // Connect branch of a channel or connection setup adds @vercel/connect
+    // when it is actually chosen.
+    expect(packageJson).not.toContain("@vercel/connect");
     // The default path used by `eve init` must carry the stable toolchain
     // version captured from the workspace catalog into generated projects.
     expect(JSON.parse(packageJson)).toMatchObject({
@@ -1513,6 +1513,24 @@ describe("scaffoldBaseProject", () => {
     ]);
     await expect(readFile(join(targetDirectory, "agent/agent.ts"), "utf8")).resolves.toContain(
       'model: "openai/gpt-5-mini"',
+    );
+  });
+
+  test("pins @vercel/connect only when the scaffold opts in", async () => {
+    const targetDirectory = await createTempDir();
+    const projectRoot = await scaffoldBaseProject({
+      projectName: "connect-agent",
+      model: "openai/gpt-5-mini",
+      targetDirectory,
+      evePackage: TEST_EVE_PACKAGE,
+      aiPackageVersion: "7.0.0",
+      connectPackageVersion: "0.2.2",
+      zodPackageVersion: "4.5.4",
+      vercelConnect: true,
+    });
+
+    await expect(readFile(join(projectRoot, "package.json"), "utf8")).resolves.toContain(
+      '"@vercel/connect": "0.2.2"',
     );
   });
 });

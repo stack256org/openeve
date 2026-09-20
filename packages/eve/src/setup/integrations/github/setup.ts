@@ -1,10 +1,12 @@
 import { join } from "node:path";
 
+import { appendEnv } from "#setup/append-env.js";
 import type { MultiSelectQuestion } from "#setup/ask.js";
 import type { VercelProjectReference } from "#setup/project-resolution.js";
 import { deriveSlackConnectorSlug } from "#setup/scaffold/index.js";
 import { writeTextFile } from "#setup/scaffold/files.js";
 
+import { askPortableCredentials, writePortableEnv } from "../shared/portable-credentials.js";
 import {
   defineSetupIntegration,
   type SetupApplyContext,
@@ -13,12 +15,14 @@ import {
 import { provisionGitHubConnector } from "./connect.js";
 
 export interface GitHubSetupDeps {
+  appendEnv: typeof appendEnv;
   deriveConnectorSlug: typeof deriveSlackConnectorSlug;
   provisionConnector: typeof provisionGitHubConnector;
   writeTextFile: typeof writeTextFile;
 }
 
 const defaultDeps: GitHubSetupDeps = {
+  appendEnv,
   deriveConnectorSlug: deriveSlackConnectorSlug,
   provisionConnector: provisionGitHubConnector,
   writeTextFile,
@@ -62,12 +66,8 @@ const githubEventsQuestion: MultiSelectQuestion<GitHubWebhookEvent> = {
   requireSelection: true,
 };
 
-function connectTemplate(
-  uid: string,
-  appSlug: string,
-  events: readonly GitHubWebhookEvent[],
-): string {
-  const handlers = [
+function eventHandlers(events: readonly GitHubWebhookEvent[]): string[] {
+  return [
     events.includes("issues")
       ? `  onIssue(ctx, issue) {
     if (issue.action !== "opened") return null;
@@ -81,6 +81,31 @@ function connectTemplate(
   },`
       : undefined,
   ].filter((handler): handler is string => handler !== undefined);
+}
+
+/** Reads the App id, private key, and webhook secret from the environment. */
+function portableTemplate(events: readonly GitHubWebhookEvent[]): string {
+  const handlers = eventHandlers(events);
+  if (handlers.length === 0) {
+    return `import { githubChannel } from "eve/channels/github";
+
+export default githubChannel();
+`;
+  }
+  return `import { defaultGitHubAuth, githubChannel } from "eve/channels/github";
+
+export default githubChannel({
+${handlers.join("\n")}
+});
+`;
+}
+
+function connectTemplate(
+  uid: string,
+  appSlug: string,
+  events: readonly GitHubWebhookEvent[],
+): string {
+  const handlers = eventHandlers(events);
   const defaultAuthImport = handlers.length > 0 ? ", defaultGitHubAuth" : "";
   const handlerBlock = handlers.length > 0 ? `\n${handlers.join("\n")}` : "";
   return `import { connectGitHubCredentials } from "@vercel/connect/eve";
@@ -93,19 +118,25 @@ export default githubChannel({
 `;
 }
 
-export interface GitHubSetupPlan {
-  events: readonly GitHubWebhookEvent[];
-  project: VercelProjectReference;
-  slug: string;
-}
+export type GitHubSetupPlan = { events: readonly GitHubWebhookEvent[] } & (
+  | { credentials: "environment" }
+  | { credentials: "vercel-connect"; project: VercelProjectReference; slug: string }
+);
 
 export async function prepareGitHubSetup(
   context: SetupPrepareContext,
   deps: GitHubSetupDeps = defaultDeps,
 ): Promise<GitHubSetupPlan> {
+  const credentials = await askPortableCredentials(context, {
+    key: "github-credentials",
+    label: "GitHub",
+    connectHint: "Vercel Connect manages the GitHub App and its webhooks",
+    portableHint: "Bring your own GitHub App and read its credentials from the environment",
+  });
   const events = await context.asker.askMany(githubEventsQuestion);
+  if (credentials === "environment") return { credentials, events };
   const project = await context.resolveVercelProject("GitHub");
-  return { events, project, slug: await deps.deriveConnectorSlug(context.appRoot) };
+  return { credentials, events, project, slug: await deps.deriveConnectorSlug(context.appRoot) };
 }
 
 export async function applyGitHubSetup(
@@ -113,6 +144,28 @@ export async function applyGitHubSetup(
   context: SetupApplyContext,
   deps: GitHubSetupDeps = defaultDeps,
 ) {
+  const channelPath = join(context.appRoot, "agent/channels/github.ts");
+  if (plan.credentials === "environment") {
+    await deps.writeTextFile(channelPath, portableTemplate(plan.events), { force: context.force });
+    await writePortableEnv(
+      {
+        environmentRoot: context.projectRoot,
+        values: {
+          GITHUB_APP_ID: "",
+          GITHUB_APP_PRIVATE_KEY: "",
+          GITHUB_APP_SLUG: "",
+          GITHUB_WEBHOOK_SECRET: "",
+        },
+      },
+      { appendEnv: deps.appendEnv },
+    );
+    context.presenter.nextSteps([
+      "Create a GitHub App, then set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET, and GITHUB_APP_SLUG (listed in .env.example) in your host's environment.",
+      "Point the GitHub App webhook URL at https://<your-host>/eve/v1/github, then install the App where you want to use it.",
+      "Mention the App's @<slug> in a new issue, pull request, or review comment to invoke the agent.",
+    ]);
+    return { facts: [], deploymentRequired: true as const };
+  }
   context.presenter.log.info("GitHub App");
   context.presenter.log.info(
     "Vercel Connect creates a GitHub App and routes verified webhooks to your deployed agent.",
@@ -126,7 +179,7 @@ export async function applyGitHubSetup(
     signal: context.signal,
   });
   await deps.writeTextFile(
-    join(context.appRoot, "agent/channels/github.ts"),
+    channelPath,
     connectTemplate(connector.uid, connector.appSlug, plan.events),
     { force: context.force },
   );

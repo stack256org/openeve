@@ -4,7 +4,7 @@ description: "Reach your agent from Slack app mentions, DMs, slash commands, and
 type: integration
 ---
 
-The Slack channel puts your agent inside a workspace. It handles `@mentions`, DMs, slash commands, shortcuts, and interactive callbacks; replies in threads; shows typing indicators; and turns human-in-the-loop (HITL) prompts into buttons. [Vercel Connect](https://vercel.com/kb/guide/vercel-connect) is the recommended setup: it manages the Slack bot token, verifies inbound requests, supports token rotation and multiple workspace installations, and forwards events to your agent without copying Slack secrets into your project environment. If you cannot use Vercel Connect, you can provide the bot token and signing secret through environment variables. See [Channels](./overview) for the contract this builds on.
+The Slack channel puts your agent inside a workspace. It handles `@mentions`, DMs, slash commands, shortcuts, and interactive callbacks; replies in threads; shows typing indicators; and turns human-in-the-loop (HITL) prompts into buttons. Portable credentials are the default setup: you supply the bot token and signing secret through environment variables, which works on any host. On Vercel, [Vercel Connect](https://vercel.com/kb/guide/vercel-connect) is available instead: it manages the Slack bot token, verifies inbound requests, supports token rotation and multiple workspace installations, and forwards events to your agent without copying Slack secrets into your project environment. See [Channels](./overview) for the contract this builds on.
 
 ## Add the channel
 
@@ -14,9 +14,9 @@ Run the guided setup from your agent project:
 eve add channel/slack
 ```
 
-The command recommends Vercel Connect, then scaffolds `agent/channels/slack.ts` and installs any required dependency. Choose the environment-variable option only when you need to manage the Slack bot token and signing secret yourself.
+The command recommends portable credentials, then scaffolds `agent/channels/slack.ts` and installs any required dependency. Choose **Set up Vercel Connect** when the agent runs on Vercel and you would rather Connect held the Slack bot token and signing secret.
 
-### Recommended: use Vercel Connect
+### Use Vercel Connect
 
 Vercel Connect setup requires the Vercel CLI. The guided flow signs you in when needed, creates or links a Vercel project, creates or reuses a Slack connector, waits for you to install it in a workspace, and registers `/eve/v1/slack` as a trigger destination before writing the channel file.
 
@@ -49,7 +49,7 @@ Literal tokens and zero-argument token functions remain supported. A multi-works
 
 ### Manage Slack credentials yourself
 
-Use this fallback when the agent does not run on Vercel or Vercel Connect is unavailable. In the setup command, **Use portable credentials** is the environment-variable option; eve adds `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` to `.env.example`.
+This is the default. In the setup command, **Use portable credentials** is the environment-variable option; eve adds `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` to `.env.example`.
 
 This option does not create or install the Slack app. Configure it in [Slack app settings](https://api.slack.com/apps):
 

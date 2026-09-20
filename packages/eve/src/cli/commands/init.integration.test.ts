@@ -1144,9 +1144,14 @@ describe("runInitCommand", () => {
     // A node engine is declared so Vercel builds on a supported Node rather
     // than a stale dashboard pin.
     expect(JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"))).toMatchObject({
-      dependencies: { "@vercel/connect": "0.2.2", ai: "7.0.0", eve: "^0.6.0", zod: "^3.25.0" },
+      dependencies: { ai: "7.0.0", eve: "^0.6.0", zod: "^3.25.0" },
       engines: { node: "24.x" },
     });
+    // No Vercel dependency is declared up front; the Connect branch of a
+    // channel or connection setup adds @vercel/connect when it is chosen.
+    expect(await readFile(join(projectRoot, "package.json"), "utf8")).not.toContain(
+      "@vercel/connect",
+    );
     expect(deps.runPackageManagerInstall).toHaveBeenCalledWith(
       "pnpm",
       projectRoot,
@@ -1165,7 +1170,7 @@ describe("runInitCommand", () => {
     expect(printed).toContain("Updated existing project:");
     expect(printed).toContain("Created agent/agent.ts");
     expect(printed).toContain("Created agent/instructions.md");
-    expect(printed).toContain("Added dependencies: @vercel/connect, ai, eve");
+    expect(printed).toContain("Added dependencies: ai, eve");
     expect(printed).toContain(`Updated ${join(projectRoot, "package.json")}`);
     expect(printed).toContain(`Updated ${join(projectRoot, "pnpm-workspace.yaml")}`);
     expect(printed).not.toContain("Overrode package.json engines.node");
@@ -1579,9 +1584,7 @@ describe("runInitCommand", () => {
     });
     expect(output.messages.join("\n")).toContain("Updated existing project:");
     expect(output.messages.join("\n")).toContain("Created agent/agent.ts");
-    expect(output.messages.join("\n")).toContain(
-      "Added dependencies: @vercel/connect, ai, eve, zod",
-    );
+    expect(output.messages.join("\n")).toContain("Added dependencies: ai, eve, zod");
   });
 
   it("replays only the actionable npm error, dropping silly/verbose/http/timing noise", async () => {

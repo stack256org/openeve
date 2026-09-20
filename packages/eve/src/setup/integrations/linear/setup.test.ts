@@ -12,6 +12,7 @@ import {
 
 function deps(): LinearSetupDeps {
   return {
+    appendEnv: vi.fn(async () => ({ written: [], skipped: [] })),
     attachConnector: vi.fn(async () => {}),
     deriveConnectorSlug: vi.fn(async () => "agent" as never),
     findConnector: vi.fn(async () => undefined),
@@ -40,7 +41,7 @@ describe("Linear setup", () => {
   });
   it("prepares before provisioning", async () => {
     const effects = deps();
-    const ctx = contexts();
+    const ctx = contexts({ "linear-credentials": "vercel" });
     const plan = await prepareLinearSetup(ctx.prepare, effects);
     expect(effects.provisionConnector).not.toHaveBeenCalled();
     await applyLinearSetup(plan, ctx.apply, effects);
@@ -51,11 +52,35 @@ describe("Linear setup", () => {
   it("prepares reuse without attaching", async () => {
     const effects = deps();
     vi.mocked(effects.findConnector).mockResolvedValue({ id: "existing", uid: "linear/agent" });
-    const ctx = contexts({ "linear.existing-connector": "reuse" });
+    const ctx = contexts({
+      "linear-credentials": "vercel",
+      "linear.existing-connector": "reuse",
+    });
     const plan = await prepareLinearSetup(ctx.prepare, effects);
     expect(effects.attachConnector).not.toHaveBeenCalled();
     await applyLinearSetup(plan, ctx.apply, effects);
     expect(effects.attachConnector).toHaveBeenCalledOnce();
+  });
+  it("scaffolds portable credentials without a Vercel project", async () => {
+    const effects = deps();
+    const resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" }));
+    const ctx = contexts({ "linear-credentials": "portable" }, resolveVercelProject, "logged-out");
+
+    const plan = await prepareLinearSetup(ctx.prepare, effects);
+    await applyLinearSetup(plan, ctx.apply, effects);
+
+    expect(resolveVercelProject).not.toHaveBeenCalled();
+    expect(effects.findConnector).not.toHaveBeenCalled();
+    expect(effects.provisionConnector).not.toHaveBeenCalled();
+    expect(effects.writeTextFile).toHaveBeenCalledWith(
+      "/project/agent/channels/linear.ts",
+      expect.not.stringContaining("@vercel/connect"),
+      { force: undefined },
+    );
+    expect(effects.appendEnv).toHaveBeenCalledWith("/project/.env.example", {
+      LINEAR_AGENT_ACCESS_TOKEN: "",
+      LINEAR_WEBHOOK_SECRET: "",
+    });
   });
   it("requires a linked project", async () => {
     const effects = deps();
@@ -63,7 +88,10 @@ describe("Linear setup", () => {
       throw new Error("eve link");
     });
     await expect(
-      prepareLinearSetup(contexts({}, resolveVercelProject).prepare, effects),
+      prepareLinearSetup(
+        contexts({ "linear-credentials": "vercel" }, resolveVercelProject).prepare,
+        effects,
+      ),
     ).rejects.toThrow("eve link");
     expect(effects.findConnector).not.toHaveBeenCalled();
   });
@@ -72,7 +100,10 @@ describe("Linear setup", () => {
     const resolveVercelProject = vi.fn(async () => ({ orgId: "team", projectId: "project" }));
 
     await expect(
-      prepareLinearSetup(contexts({}, resolveVercelProject, "logged-out").prepare, effects),
+      prepareLinearSetup(
+        contexts({ "linear-credentials": "vercel" }, resolveVercelProject, "logged-out").prepare,
+        effects,
+      ),
     ).resolves.toMatchObject({ project: { orgId: "team", projectId: "project" } });
     expect(resolveVercelProject).toHaveBeenCalledWith("Linear");
   });
