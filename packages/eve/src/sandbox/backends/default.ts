@@ -28,8 +28,9 @@ export interface DefaultSandboxOptions {
  * Constructs an availability-aware sandbox backend. On first use it
  * picks the best backend the host supports, in priority order:
  *
- * 1. **Vercel Sandbox** when deploying on Vercel (`process.env.VERCEL`
- *    is set) — local container/VM runtimes cannot run there.
+ * 1. **Vercel Sandbox** when the resolved host is Vercel (`host:
+ *    vercel()` in `agent/agent.ts`, or `VERCEL` set in the environment)
+ *    — local container/VM runtimes cannot run there.
  * 2. **Docker** when a Linux-container Docker daemon is reachable.
  * 3. **microsandbox** when the host supports it (macOS on Apple
  *    Silicon, or glibc Linux with KVM); `eve dev` auto-installs the

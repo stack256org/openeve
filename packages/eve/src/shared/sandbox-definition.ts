@@ -86,7 +86,7 @@ interface SandboxDefinitionBase<BO = Record<string, never>, SO = Record<string, 
    *
    * When this field is omitted, eve substitutes `defaultSandbox()` at
    * runtime, which picks the best available backend: `vercel()`
-   * on hosted Vercel (where `process.env.VERCEL` is set), then Docker,
+   * on hosted Vercel (where the resolved host is Vercel), then Docker,
    * microsandbox, or just-bash
    * everywhere else. Set `backend` explicitly to pin the sandbox to a
    * specific backend regardless of environment.

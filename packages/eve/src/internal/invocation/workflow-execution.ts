@@ -8,6 +8,7 @@ import {
   type InternalChannelSource,
 } from "#channel/channel-operations.js";
 import { parseNdjsonStream } from "#execution/ndjson-stream.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import type {
   AgentInvocation,
   AgentInvocationAuthorizationRequest,
@@ -509,7 +510,7 @@ function truncateForDisplay(value: string, maxChars = 160): string {
 }
 
 function vercelDeploymentId(): string | undefined {
-  if (process.env.VERCEL !== "1") return undefined;
+  if (resolveHostProvider() !== "vercel") return undefined;
   const deploymentId = process.env.VERCEL_DEPLOYMENT_ID?.trim();
   return deploymentId && deploymentId.length > 0 ? deploymentId : undefined;
 }

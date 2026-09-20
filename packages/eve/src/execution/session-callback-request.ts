@@ -1,3 +1,4 @@
+import { resolveHostProvider } from "#internal/host/provider.js";
 import { createLogger } from "#internal/logging.js";
 import { isObject } from "#shared/guards.js";
 
@@ -83,7 +84,7 @@ function callbackLogFields(input: { readonly body: unknown; readonly url: string
 
 async function resolveSessionCallbackHeaders(urlValue: string): Promise<Record<string, string>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (process.env.VERCEL !== "1") return headers;
+  if (resolveHostProvider() !== "vercel") return headers;
 
   let url: URL;
   try {

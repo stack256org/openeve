@@ -1,5 +1,6 @@
 import { isLinuxDockerDaemonAvailableSync } from "#execution/sandbox/bindings/docker-cli.js";
 import { isMicrosandboxPlatformSupported } from "#execution/sandbox/bindings/microsandbox-platform.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 
 /** Availability probes shared by built-in backend selectors. */
 export interface DefaultSandboxProbes {
@@ -10,7 +11,7 @@ export interface DefaultSandboxProbes {
 
 // Keep probes separate from backend factories so authored selectors do not bundle engines.
 export const SANDBOX_BACKEND_PROBES: DefaultSandboxProbes = {
-  isDeployedOnVercel: () => Boolean(process.env.VERCEL),
+  isDeployedOnVercel: () => resolveHostProvider() === "vercel",
   isDockerAvailable: () => isLinuxDockerDaemonAvailableSync(),
   isMicrosandboxSupported: () => isMicrosandboxPlatformSupported(),
 };

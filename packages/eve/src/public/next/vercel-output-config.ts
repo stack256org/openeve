@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+import { resolveHostProvider } from "#internal/host/provider.js";
 import { assembleEveVercelServices } from "#internal/vercel/assemble-eve-services.js";
 import {
   findConfiguredEveServiceEntry,
@@ -70,7 +71,7 @@ async function resolveVercelOutputConfigLocation(nextRoot: string): Promise<{
   }
 
   return {
-    canWriteGeneratedOutput: Boolean(process.env.VERCEL),
+    canWriteGeneratedOutput: resolveHostProvider() === "vercel",
     outputConfigPath: join(nextRoot, VERCEL_OUTPUT_CONFIG_FILE_NAME),
     projectRoot,
   };

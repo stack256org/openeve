@@ -49,13 +49,15 @@ describe("shouldInstallSandboxShutdown", () => {
   });
 
   it("skips Vercel serverless instances", () => {
-    expect(shouldInstallSandboxShutdown({ VERCEL: "1" })).toBe(false);
+    vi.stubEnv("VERCEL", "1");
+    expect(shouldInstallSandboxShutdown({})).toBe(false);
   });
 });
 
 describe("installSandboxShutdownHandlers", () => {
   it("registers no handlers when shutdown ownership is elsewhere", () => {
-    const fakeProcess = createFakeProcess({ VERCEL: "1" });
+    vi.stubEnv("VERCEL", "1");
+    const fakeProcess = createFakeProcess();
 
     installSandboxShutdownHandlers({ log: () => {}, process: fakeProcess });
 

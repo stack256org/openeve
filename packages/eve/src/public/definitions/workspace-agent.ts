@@ -1,6 +1,7 @@
 import type { StandardJSONSchemaV1 } from "#compiled/@standard-schema/spec/index.js";
 
 import type { HeadersValue } from "#client/types.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import { type OutboundAuthFn, vercelOidc } from "#public/agents/auth.js";
 import {
   defineRemoteAgent,
@@ -97,7 +98,7 @@ function defaultWorkspaceAgentTransport(name: string): WorkspaceAgentTransport {
 }
 
 function requireVercelWorkspaceEnvironment(): void {
-  if (process.env.VERCEL) return;
+  if (resolveHostProvider() === "vercel") return;
   throw new Error(
     "No default workspace-agent transport is available in this environment. Provide transport to defineWorkspaceAgent().",
   );

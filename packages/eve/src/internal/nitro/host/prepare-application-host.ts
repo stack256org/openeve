@@ -9,6 +9,7 @@ import {
   writeCompiledArtifactsFiles,
   writeDevelopmentCompiledArtifactsFiles,
 } from "#internal/application/compiled-artifacts.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import {
   discardDevelopmentGeneration,
   stageDevelopmentGeneration,
@@ -149,7 +150,7 @@ function createPreparedApplicationHost(input: {
 }
 
 function resolveProductionWorkflowWorldTarget(): BuiltInWorkflowWorldTarget {
-  if (process.env.VERCEL) {
+  if (resolveHostProvider() === "vercel") {
     return "vercel";
   }
 

@@ -4,6 +4,7 @@ import type { CompiledWorkspaceResourceRoot } from "#compiler/manifest.js";
 import { loadCompiledModuleMapFromAuthoredSource } from "#internal/authored-module-map-loader.js";
 import { resolvePackageSourceFilePath } from "#internal/application/package.js";
 import { createAuthoredSourceRuntimeCompiledArtifactsSource } from "#internal/application/runtime-compiled-artifacts-source.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import type {
   SandboxBackend,
   SandboxBackendPrewarmInput,
@@ -380,7 +381,7 @@ function formatPrewarmFailureForEnvironment(input: {
 }
 
 function isVercelEnvironment(): boolean {
-  return Boolean(process.env.VERCEL?.trim());
+  return resolveHostProvider() === "vercel";
 }
 
 function isLocalSandboxBackend(backendName: string): boolean {

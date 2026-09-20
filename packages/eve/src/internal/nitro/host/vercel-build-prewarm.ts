@@ -1,4 +1,5 @@
 import { prewarmAppSandboxes } from "#execution/sandbox/prewarm.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 
 type PrewarmAppSandboxesInput = Parameters<typeof prewarmAppSandboxes>[0];
 
@@ -16,7 +17,7 @@ const MISSING_VERCEL_BUILD_OIDC_ERROR =
  * `false` outside a Vercel build.
  */
 export async function runVercelBuildPrewarm(input: PrewarmAppSandboxesInput): Promise<boolean> {
-  if (!process.env.VERCEL?.trim()) {
+  if (resolveHostProvider() !== "vercel") {
     return false;
   }
 

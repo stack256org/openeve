@@ -1,5 +1,6 @@
 import { shutdownActiveSandboxHandles } from "#execution/sandbox/active-handles.js";
 import { isEveDevEnvironment } from "#internal/application/optional-package-install.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 
 const SHUTDOWN_SIGNALS = ["SIGINT", "SIGTERM"] as const;
 type ShutdownSignal = (typeof SHUTDOWN_SIGNALS)[number];
@@ -41,7 +42,7 @@ export function shouldInstallSandboxShutdown(env: Record<string, string | undefi
   if (env.EVE_DEVELOPMENT_SANDBOX_RUN_ID !== undefined) {
     return false;
   }
-  if (env.VERCEL !== undefined) {
+  if (resolveHostProvider() === "vercel") {
     return false;
   }
   return true;

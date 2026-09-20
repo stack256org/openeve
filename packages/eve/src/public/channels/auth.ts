@@ -9,6 +9,7 @@ import { decodeJwt } from "#compiled/jose/index.js";
 
 import type { SessionAuthContext } from "#channel/types.js";
 import { isEveDevEnvironment } from "#internal/application/dev-environment.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import { createLogger } from "#internal/logging.js";
 import { authenticateHttpBasicStrategy } from "#channel/auth/http-basic.js";
 import { authenticateJwtEcdsaStrategy } from "#channel/auth/jwt-ecdsa.js";
@@ -828,7 +829,7 @@ export function localDev(): AuthFn<Request> {
 }
 
 function isLocalDevelopmentServer(): boolean {
-  if (process.env.VERCEL && process.env.VERCEL_ENV === "development") {
+  if (resolveHostProvider() === "vercel" && process.env.VERCEL_ENV === "development") {
     return true;
   }
   return isEveDevEnvironment();

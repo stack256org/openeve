@@ -25,6 +25,7 @@ import {
   RecoverablePublicationError,
 } from "#internal/application/output-publication.js";
 import { stageProductionCompilerArtifacts } from "#internal/application/production-compiler-artifacts.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import {
   materializeVercelWorkflowFunctionOutput,
   normalizeEveVercelFunctionOutput,
@@ -91,7 +92,7 @@ async function writeOptionalApplicationBuildProfile(input: {
       input.profileOutputPath,
       createApplicationBuildProfile({
         output,
-        target: process.env.VERCEL ? "vercel" : "local",
+        target: resolveHostProvider() === "vercel" ? "vercel" : "local",
         timing,
       }),
     );
@@ -286,7 +287,7 @@ async function buildApplicationInWorkspace(
   const preparedHost = await measureBuildPhase(profiler, "host.prepare", () =>
     prepareProductionApplicationHost(workspace),
   );
-  const isVercelBuild = Boolean(process.env.VERCEL);
+  const isVercelBuild = resolveHostProvider() === "vercel";
 
   const servicePrefix = isVercelBuild
     ? await measureBuildPhase(profiler, "vercel.service-prefix.resolve", () =>

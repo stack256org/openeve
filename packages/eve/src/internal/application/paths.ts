@@ -8,6 +8,7 @@ import {
   resolvePackageRoot,
   resolvePackageSourceDirectoryPath,
 } from "#internal/application/package.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 
 export {
   EVE_INTERNAL_BUILD_OUTPUT_DIRECTORY_ENV,
@@ -39,7 +40,7 @@ function getWorkflowBuildCacheKey(appRoot: string): string {
  * this is the canonical signal for "managed by Vercel" versus self-hosted.
  */
 export function isVercelBuildEnvironment(): boolean {
-  return Boolean(process.env.VERCEL);
+  return resolveHostProvider() === "vercel";
 }
 
 /**

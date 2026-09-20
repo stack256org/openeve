@@ -16,6 +16,7 @@ import {
   prepareEveVersionedCacheDirectory,
   writeEveVersionedCacheMetadata,
 } from "#internal/application/cache-metadata.js";
+import { resolveHostProvider } from "#internal/host/provider.js";
 import { createProductionNitroArtifactsConfig } from "#internal/nitro/host/artifacts-config.js";
 import { createCompiledSandboxBackendPrunePlugin } from "#internal/nitro/host/compiled-sandbox-backend-prune-plugin.js";
 import { createExtensionScopePlugin } from "#internal/bundler/extension-scope-plugin.js";
@@ -78,7 +79,7 @@ function resolveWorkflowAliases(): Record<string, string> {
 }
 
 function resolveProductionNitroPreset(): "vercel" | undefined {
-  return process.env.VERCEL ? "vercel" : undefined;
+  return resolveHostProvider() === "vercel" ? "vercel" : undefined;
 }
 
 /** Whether any agent exposes a generated-program tool that needs the workflow sandbox runtime. */
