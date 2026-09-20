@@ -999,9 +999,26 @@ both commands still work for users who do want Vercel, and the zero-Vercel
 promise is enforced at runtime by `check:no-vercel-runtime`, not by which
 commands appear in `--help`.
 
-### Task 11: Rebrand
+### Task 11: Rebrand — PARTIALLY DONE, one decision left
 
-`packages/eve/package.json` only: `"name": "open-eve"`, `"bin": { "openeve": "./bin/eve.js", "eve": "./bin/eve.js" }`. **No file or directory is renamed.**
+The `openeve` command exists: `bin` is now
+`{ "eve": "./bin/eve.js", "openeve": "./bin/eve.js" }`, so both names work.
+
+**The package `name` stays `eve`, deliberately.** The package name is also the
+import specifier, so renaming it to `open-eve` rewrites 1645 import sites and
+50 `package.json` files across fixtures, templates, and e2e. Every one of those
+lines would then differ from upstream, and every future upstream merge would
+conflict on them. That is a direct trade against the project's stated first
+priority, which is that syncing the fork stays easy.
+
+The cost of keeping `eve`: the package cannot be published to npm under
+`open-eve`, because the published name and the import specifier are the same
+string. Installing from the GitHub fork is unaffected.
+
+The decision that remains is whether open-eve is ever published to npm as its
+own package. If yes, the rename becomes necessary and should happen in one
+mechanical commit that touches nothing else, so the merge damage is contained
+to a single well-understood diff.
 
 ### Task 12: Registry — BLOCKED ON HOSTING
 
