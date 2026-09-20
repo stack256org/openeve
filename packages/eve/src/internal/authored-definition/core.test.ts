@@ -220,6 +220,18 @@ describe("normalizeAgentDefinition", () => {
     ).toThrow(FAILURE_MESSAGE);
   });
 
+  it.each(["self", "vercel"] as const)("accepts host %j", (value) => {
+    expect(
+      normalizeAgentDefinition({ model: "openai/gpt-5.5", host: value }, FAILURE_MESSAGE).host,
+    ).toBe(value);
+  });
+
+  it("rejects an unknown host", () => {
+    expect(() =>
+      normalizeAgentDefinition({ model: "openai/gpt-5.5", host: "fly" }, FAILURE_MESSAGE),
+    ).toThrow('"host" must be "self" or "vercel".');
+  });
+
   it("accepts a workflow world package name", () => {
     const definition = normalizeAgentDefinition(
       {

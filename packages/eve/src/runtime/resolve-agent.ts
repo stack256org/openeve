@@ -187,6 +187,7 @@ function createResolvedAgentConfig(
     defaultTools?: boolean;
     description?: string;
     experimental?: NonNullable<ResolvedAgent["config"]>["experimental"];
+    host?: NonNullable<ResolvedAgent["config"]>["host"];
     name: string;
     outputSchema?: NonNullable<ResolvedAgent["config"]>["outputSchema"];
     reasoning?: NonNullable<ResolvedAgent["config"]>["reasoning"];
@@ -202,6 +203,9 @@ function createResolvedAgentConfig(
   }
   if (manifest.config.description !== undefined) {
     config.description = manifest.config.description;
+  }
+  if (manifest.config.host !== undefined) {
+    config.host = manifest.config.host;
   }
 
   if (manifest.config.compaction !== undefined) {

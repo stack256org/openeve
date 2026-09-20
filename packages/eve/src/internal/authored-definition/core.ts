@@ -20,6 +20,7 @@ import {
   AGENT_WORKFLOW_RETENTION_VALUES,
   type PublicAgentStaticModelDefinition,
 } from "#shared/agent-definition.js";
+import type { HostProviderDefinition } from "#internal/host/provider.js";
 import {
   isDynamicSentinel,
   type DynamicEvents,
@@ -56,6 +57,7 @@ export function normalizeAgentDefinition(
       "defaultTools",
       "description",
       "experimental",
+      "host",
       "limits",
       "model",
       "modelContextWindowTokens",
@@ -101,6 +103,10 @@ export function normalizeAgentDefinition(
 
   if (record.experimental !== undefined) {
     definition.experimental = normalizeAgentExperimentalDefinition(record.experimental, message);
+  }
+
+  if (record.host !== undefined) {
+    definition.host = normalizeAgentHostDefinition(record.host, message);
   }
 
   if (record.modelOptions !== undefined) {
@@ -277,6 +283,21 @@ function normalizeAgentWorkflowDefinition(
   }
 
   return normalizedDefinition;
+}
+
+const AGENT_HOST_VALUES: readonly HostProviderDefinition[] = ["self", "vercel"];
+
+function normalizeAgentHostDefinition(
+  value: unknown,
+  message: string,
+): NonNullable<NormalizedAgentDefinition["host"]> {
+  const match = AGENT_HOST_VALUES.find((accepted) => accepted === value);
+  if (match === undefined) {
+    const accepted = AGENT_HOST_VALUES.map((entry) => JSON.stringify(entry)).join(" or ");
+    throw new Error(`${message} "host" must be ${accepted}.`);
+  }
+
+  return match;
 }
 
 function normalizeAgentWorkflowRetentionDefinition(

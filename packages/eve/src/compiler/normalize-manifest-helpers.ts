@@ -35,6 +35,11 @@ export function assertRootOnlyConfig(
       `Workflow world configuration is only supported on the root agent config. Remove "experimental.workflow.world" from "${agentId}".`,
     );
   }
+  if (config.host !== undefined) {
+    throw new Error(
+      `Host configuration is only supported on the root agent config. Remove "host" from "${agentId}".`,
+    );
+  }
 }
 
 export function assertApplicationOverlayCanApplyToAllNodes(logicalPaths: readonly string[]): void {

@@ -17,6 +17,7 @@ import { createProgrammaticCompiledModuleMap } from "#compiler/module-map.js";
 import { validateCompiledModuleMap } from "#compiler/validate-artifact.js";
 import { frameworkAgentSourceRegistry } from "#framework/sources/registry.js";
 import { defineAgent } from "#public/definitions/agent.js";
+import { vercel } from "#public/hosts/vercel.js";
 import { defineChannel, GET, POST } from "#public/definitions/channel.js";
 import { defineMcpClientConnection } from "#public/definitions/connections/mcp.js";
 import { defineHook } from "#public/definitions/hook.js";
@@ -73,6 +74,37 @@ describe("compileAgentManifest source graph", () => {
         "child",
       ),
     ).toThrow('Remove "experimental.workflow.world" from "child".');
+  });
+
+  it("keeps the host selection root-only", () => {
+    expect(() => assertRootOnlyConfig({ host: "vercel" } as never, false, "child")).toThrow(
+      'Remove "host" from "child".',
+    );
+  });
+
+  it("carries an authored host through compilation, serialization, and resolution", async () => {
+    const sourceRegistry = registry([
+      {
+        logicalPath: "agent.ts",
+        loadNamespace: async () => ({
+          default: defineAgent({ model: "openai/gpt-5.4", host: vercel() }),
+        }),
+      },
+    ]);
+
+    const compiled = await compileAgentManifest(manifest(), {
+      sourceRegistries: [sourceRegistry],
+    });
+    expect(compiled.config.host).toBe("vercel");
+
+    const serialized = compiledAgentManifestSchema.parse(JSON.parse(JSON.stringify(compiled)));
+    const moduleMap = await createProgrammaticCompiledModuleMap(serialized, [
+      frameworkAgentSourceRegistry,
+      sourceRegistry,
+    ]);
+    const resolved = await resolveAgent({ manifest: serialized, moduleMap });
+
+    expect(resolved.config?.host).toBe("vercel");
   });
 
   it("freezes source metadata behind an immutable registry map", () => {

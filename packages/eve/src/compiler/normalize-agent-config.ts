@@ -85,6 +85,7 @@ export async function compileAgentConfig(
     defaultTools?: boolean;
     description?: string;
     experimental?: CompiledAgentDefinition["experimental"];
+    host?: CompiledAgentDefinition["host"];
     name: string;
     outputSchema?: JsonObject;
     reasoning?: CompiledAgentDefinition["reasoning"];
@@ -103,6 +104,10 @@ export async function compileAgentConfig(
 
   if (definition.description !== undefined) {
     compiledConfig.description = definition.description;
+  }
+
+  if (definition.host !== undefined) {
+    compiledConfig.host = definition.host;
   }
 
   let dynamicModel: CompiledAgentDefinition["dynamicModel"] | undefined;

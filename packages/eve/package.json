@@ -434,6 +434,11 @@
       "import": "./dist/src/public/channels/linear/index.js",
       "default": "./dist/src/public/channels/linear/index.js"
     },
+    "./hosts/vercel": {
+      "types": "./dist/src/public/hosts/vercel.d.ts",
+      "import": "./dist/src/public/hosts/vercel.js",
+      "default": "./dist/src/public/hosts/vercel.js"
+    },
     "./package.json": "./package.json",
     "./setup/scaffold": {
       "eve-source": "./dist/src/setup/scaffold/index.js",

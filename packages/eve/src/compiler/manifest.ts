@@ -603,6 +603,7 @@ const compiledAgentConfigBaseFields = {
     })
     .strict()
     .optional(),
+  host: z.literal(["self", "vercel"]).optional(),
   name: z.string(),
   outputSchema: jsonObjectSchema.optional(),
   reasoning: z
@@ -1206,6 +1207,7 @@ function cloneCompiledAgentDefinition(config: CompiledAgentDefinition): Compiled
                     world: config.experimental.workflow.world,
                   },
           },
+    host: config.host,
     name: config.name,
     outputSchema: config.outputSchema,
     reasoning: config.reasoning,

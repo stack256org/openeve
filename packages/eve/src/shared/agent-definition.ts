@@ -2,6 +2,7 @@ import type { CallSettings, LanguageModel } from "ai";
 import type { StandardJSONSchemaV1 } from "#compiled/@standard-schema/spec/index.js";
 import type { JsonObject } from "#shared/json.js";
 import type { ModuleSourceRef } from "#shared/source-ref.js";
+import type { HostProviderDefinition } from "#internal/host/provider.js";
 import {
   isDynamicSentinel,
   type DynamicResolveContext,
@@ -318,6 +319,7 @@ export type InternalAgentDefinition = {
   compaction?: InternalAgentCompactionDefinition;
   defaultTools?: boolean;
   experimental?: AgentExperimentalDefinition;
+  host?: HostProviderDefinition;
   model: InternalAgentModelDefinition;
   outputSchema?: JsonObject;
   reasoning?: AgentReasoningDefinition;
@@ -353,6 +355,11 @@ type PublicAgentDefinitionBase = {
    * {@link AgentExperimentalDefinition}.
    */
   readonly experimental?: AgentExperimentalDefinition;
+  /**
+   * Host that operates this agent's runtime services. Root-only. Defaults to
+   * `"self"` unless the deployment environment says otherwise.
+   */
+  readonly host?: HostProviderDefinition;
   /**
    * Provider-agnostic reasoning effort for the agent's turn model calls.
    * Support for individual levels depends on the selected model and provider.
