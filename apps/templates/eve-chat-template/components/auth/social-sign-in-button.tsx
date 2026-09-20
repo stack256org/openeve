@@ -1,26 +1,26 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { useState } from "react";
 import { Loader2Icon } from "lucide-react";
-import { VercelIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import type { SocialProvider } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 
-export function SignInButton({
+export function SocialSignInButton({
   callbackPath,
-  children,
   className,
   disabled,
   onBeforeSignIn,
+  provider,
   variant = "default",
 }: {
   readonly callbackPath?: string;
-  readonly children?: ReactNode;
   readonly className?: string;
   readonly disabled?: boolean;
   readonly onBeforeSignIn?: () => void;
+  readonly provider: SocialProvider;
   readonly variant?: ComponentProps<typeof Button>["variant"];
 }) {
   const [pending, setPending] = useState(false);
@@ -37,7 +37,7 @@ export function SignInButton({
           onBeforeSignIn?.();
 
           const result = await authClient.signIn.social({
-            provider: "vercel",
+            provider: provider.id,
             callbackURL: resolveCallbackPath(callbackPath),
           });
 
@@ -51,12 +51,8 @@ export function SignInButton({
       type="button"
       variant={variant}
     >
-      {pending ? (
-        <Loader2Icon className="size-3.5 animate-spin" />
-      ) : (
-        <VercelIcon className="size-3.5" />
-      )}
-      {pending ? "Opening..." : (children ?? "Sign in with Vercel")}
+      {pending ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+      {pending ? "Opening..." : `Continue with ${provider.label}`}
     </Button>
   );
 }

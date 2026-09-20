@@ -1,16 +1,16 @@
 import type { AuthFn } from "eve/channels/auth";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getPasswordSessionFromHeaders } from "@/lib/password-auth";
 import { getSetupStatus } from "@/lib/setup";
 
 export const betterAuthEveAuth: AuthFn<Request> = async (request) => {
   const setupStatus = await getSetupStatus();
 
-  if (!setupStatus.appReady || setupStatus.authMode !== "vercel") {
+  if (!setupStatus.appReady || setupStatus.authMode !== "account") {
     return null;
   }
 
-  const session = await auth.api.getSession({
+  const session = await getAuth().api.getSession({
     headers: request.headers,
   });
 

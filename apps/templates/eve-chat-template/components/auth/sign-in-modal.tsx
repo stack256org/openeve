@@ -1,9 +1,9 @@
 "use client";
 
-import { LockKeyholeIcon } from "lucide-react";
+import { LockKeyholeIcon, MailIcon } from "lucide-react";
+import { EmailSignInForm } from "@/components/auth/email-sign-in-form";
 import { PasswordSignInForm } from "@/components/auth/password-sign-in-form";
-import { SignInButton } from "@/components/auth/sign-in-button";
-import { VercelIcon } from "@/components/icons";
+import { SocialSignInButton } from "@/components/auth/social-sign-in-button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { AuthMode } from "@/lib/chat/types";
+import type { AuthMode, SocialProvider } from "@/lib/chat/types";
 
 export function SignInModal({
   authMode,
@@ -20,6 +20,7 @@ export function SignInModal({
   onBeforeSignIn,
   onOpenChange,
   open,
+  socialProvider,
 }: {
   readonly authMode: AuthMode;
   readonly callbackPath?: string;
@@ -27,6 +28,7 @@ export function SignInModal({
   readonly onBeforeSignIn?: () => void;
   readonly onOpenChange: (open: boolean) => void;
   readonly open: boolean;
+  readonly socialProvider: SocialProvider | null;
 }) {
   const usesPassword = authMode === "password";
 
@@ -38,7 +40,7 @@ export function SignInModal({
             {usesPassword ? (
               <LockKeyholeIcon className="size-4 text-foreground" />
             ) : (
-              <VercelIcon className="size-4 text-foreground" />
+              <MailIcon className="size-4 text-foreground" />
             )}
           </div>
           <DialogTitle>
@@ -47,21 +49,36 @@ export function SignInModal({
           <DialogDescription>
             {usesPassword
               ? "Use the password configured by the person who deployed this agent."
-              : "Connect your Vercel account to send messages and save sessions."}
+              : "Use an email address and password to send messages and save sessions."}
           </DialogDescription>
         </DialogHeader>
         {usesPassword ? (
           <PasswordSignInForm callbackPath={callbackPath} onBeforeSignIn={onBeforeSignIn} />
         ) : (
-          <SignInButton
-            callbackPath={callbackPath}
-            className="h-11 w-full"
-            disabled={disabled}
-            onBeforeSignIn={onBeforeSignIn}
-            variant="outline"
-          >
-            Continue with Vercel
-          </SignInButton>
+          <div className="space-y-4">
+            <EmailSignInForm
+              callbackPath={callbackPath}
+              disabled={disabled}
+              onBeforeSignIn={onBeforeSignIn}
+            />
+            {socialProvider ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+                <SocialSignInButton
+                  callbackPath={callbackPath}
+                  className="h-11 w-full"
+                  disabled={disabled}
+                  onBeforeSignIn={onBeforeSignIn}
+                  provider={socialProvider}
+                  variant="outline"
+                />
+              </>
+            ) : null}
+          </div>
         )}
       </DialogContent>
     </Dialog>

@@ -76,8 +76,8 @@ fi
 step "Remaining setup"
 [ -z "${ANTHROPIC_API_KEY:-}" ] && warn "ANTHROPIC_API_KEY is required before the agent can answer."
 [ -z "${REDIS_URL:-}" ] && echo "  REDIS_URL is optional; set it to any Redis to enable distributed rate limiting."
-echo "  Production mode also needs NEXT_PUBLIC_VERCEL_APP_CLIENT_ID and VERCEL_APP_CLIENT_SECRET"
-echo "  from a Vercel OAuth app — see docs/setup-and-deploy.md."
+echo "  Production mode needs DATABASE_URL, REDIS_URL, and the BETTER_AUTH_SECRET generated above."
+echo "  Sign-in is then email and password — no third-party account. See docs/setup-and-deploy.md."
 
 step "Setup complete"
 bold "Start the app:  pnpm dev"

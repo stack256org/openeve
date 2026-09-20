@@ -5,10 +5,6 @@ import { Button } from "@/components/ui/button";
 
 const SETUP_DOCS_URL =
   "https://github.com/vercel/eve/blob/main/apps/templates/eve-chat-template/docs/setup-and-deploy.md";
-const SIGN_IN_WITH_VERCEL_URL =
-  "https://vercel.com/docs/sign-in-with-vercel/getting-started#prerequisites";
-const SIGN_IN_WITH_VERCEL_SCOPES_URL =
-  "https://vercel.com/docs/sign-in-with-vercel/scopes-and-permissions";
 
 export default async function AuthErrorPage({
   searchParams,
@@ -75,18 +71,6 @@ function AuthErrorCard({
             <ExternalLinkIcon className="size-3.5" />
           </a>
         </Button>
-        <Button asChild className="h-8 rounded-md px-3 text-sm" variant="outline">
-          <a
-            href={
-              error === "email_not_found" ? SIGN_IN_WITH_VERCEL_SCOPES_URL : SIGN_IN_WITH_VERCEL_URL
-            }
-            rel="noreferrer"
-            target="_blank"
-          >
-            Vercel OAuth docs
-            <ExternalLinkIcon className="size-3.5" />
-          </a>
-        </Button>
       </div>
     </div>
   );
@@ -97,20 +81,6 @@ function getParam(value: string | string[] | undefined) {
 }
 
 function getAuthErrorMessage(error?: string, description?: string) {
-  if (error === "email_not_found") {
-    return {
-      title: "Vercel email scope is missing",
-      body: "Enable the email scope in your Vercel App, save the app, and try signing in again. Better Auth needs Vercel to return an email address for the signed-in user.",
-    };
-  }
-
-  if (error === "invalid_scope") {
-    return {
-      title: "Vercel OAuth scopes need attention",
-      body: "The requested Vercel OAuth scope is not enabled for this app. Enable openid, email, and profile in the Vercel App settings, then try again.",
-    };
-  }
-
   if (error === "database_not_configured") {
     return {
       title: "Database is not configured",
@@ -127,15 +97,29 @@ function getAuthErrorMessage(error?: string, description?: string) {
 
   if (error === "auth_env_missing") {
     return {
-      title: "Auth environment variables are missing",
-      body: "Set BETTER_AUTH_SECRET, NEXT_PUBLIC_VERCEL_APP_CLIENT_ID, and VERCEL_APP_CLIENT_SECRET, then redeploy or restart the dev server.",
+      title: "Better Auth secret is missing",
+      body: "Set BETTER_AUTH_SECRET to a random value, for example the output of openssl rand -base64 32, then redeploy or restart the dev server.",
+    };
+  }
+
+  if (error === "email_not_found") {
+    return {
+      title: "The provider returned no email address",
+      body: "Enable the email scope on the OAuth app behind AUTH_SOCIAL_PROVIDER and try again. Better Auth needs an email address to create the account. Email and password sign-in works without any provider.",
+    };
+  }
+
+  if (error === "invalid_scope") {
+    return {
+      title: "OAuth scopes need attention",
+      body: "The OAuth app behind AUTH_SOCIAL_PROVIDER rejected a requested scope. Enable the scopes that provider needs to return a profile and an email address, then try again.",
     };
   }
 
   if (description?.toLowerCase().includes("callback")) {
     return {
       title: "Callback URL is not allowed",
-      body: "Add the exact callback URL you are using to the Vercel App: /api/auth/callback/vercel, including the protocol, domain, and local port.",
+      body: "Add the exact callback URL you are using to the OAuth app: /api/auth/callback/<provider>, including the protocol, domain, and local port.",
     };
   }
 
@@ -152,6 +136,6 @@ function getAuthErrorMessage(error?: string, description?: string) {
 
   return {
     title: "Sign-in could not finish",
-    body: "Check the Vercel App callback URL, required scopes, Better Auth secret, and database migrations. The setup guide has the exact values to verify.",
+    body: "Check BETTER_AUTH_SECRET, the database migrations, and, if you configured a social provider, its callback URL and scopes. The setup guide has the exact values to verify.",
   };
 }

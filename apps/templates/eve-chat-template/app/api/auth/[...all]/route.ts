@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { parseSetCookieHeader, stripSecureCookiePrefix } from "better-auth/cookies";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import {
   AUTH_HINT_COOKIE_MAX_AGE,
   AUTH_HINT_COOKIE_NAME,
   AUTH_HINT_COOKIE_VALUE,
   isSecureAuthHintCookie,
 } from "@/lib/auth-hint";
+import { RateLimitError, enforceRateLimit } from "@/lib/rate-limit";
 import { getSetupStatus } from "@/lib/setup";
 
 const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
+
+// Password endpoints are the credential-stuffing surface, so they are bounded
+// per client before any database work happens.
+const CREDENTIAL_PATHS = ["/sign-in/email", "/sign-up/email"];
+const CREDENTIAL_ATTEMPT_LIMIT = 10;
+const CREDENTIAL_WINDOW_SECONDS = 10 * 60;
 
 export async function GET(request: Request) {
   return handleAuth(request);
@@ -20,6 +27,12 @@ export async function POST(request: Request) {
 }
 
 async function handleAuth(request: Request) {
+  const rateLimited = await enforceCredentialRateLimit(request);
+
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   const setupStatus = await getSetupStatus();
 
   if (!setupStatus.databaseConfigured) {
@@ -34,9 +47,47 @@ async function handleAuth(request: Request) {
     return redirectToAuthError(request, "auth_env_missing");
   }
 
-  const response = await auth.handler(request);
+  const response = await getAuth().handler(request);
 
   return withAuthHintCookie(response);
+}
+
+async function enforceCredentialRateLimit(request: Request) {
+  if (request.method !== "POST" || !isCredentialRequest(request)) {
+    return null;
+  }
+
+  try {
+    await enforceRateLimit({
+      key: getClientKey(request),
+      limit: CREDENTIAL_ATTEMPT_LIMIT,
+      prefix: "auth:credentials",
+      windowSeconds: CREDENTIAL_WINDOW_SECONDS,
+    });
+
+    return null;
+  } catch (error) {
+    if (!(error instanceof RateLimitError)) {
+      throw error;
+    }
+
+    return NextResponse.json(
+      { message: "Too many sign-in attempts. Wait a few minutes and try again." },
+      { headers: { "retry-after": String(error.retryAfter) }, status: 429 },
+    );
+  }
+}
+
+function isCredentialRequest(request: Request) {
+  const { pathname } = new URL(request.url);
+
+  return CREDENTIAL_PATHS.some((path) => pathname.endsWith(path));
+}
+
+function getClientKey(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+
+  return forwardedFor || request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 function redirectToAuthError(request: Request, error: string) {

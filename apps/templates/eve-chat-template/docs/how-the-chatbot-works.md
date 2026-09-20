@@ -50,7 +50,8 @@ Important files:
 | `lib/db/schema.ts`                      | Drizzle tables for Better Auth, chats, and chat events.                                             |
 | `lib/db/queries.ts`                     | Chat list, chat load, event save, snapshot save, and delete queries.                                |
 | `lib/setup.ts`                          | Selects starter, local development, or production mode and validates readiness.                     |
-| `lib/auth.ts`                           | Better Auth configuration with Sign in with Vercel.                                                 |
+| `lib/auth.ts`                           | Better Auth configuration: email and password, plus an optional social provider.                    |
+| `lib/social-provider.ts`                | Reads the optional social provider from the environment and names it.                               |
 | `lib/password-auth.ts`                  | Shared-password verification and stateless signed session cookies.                                  |
 | `lib/eve-auth.ts`                       | Converts password or Better Auth sessions into eve channel principals.                              |
 | `lib/rate-limit.ts`                     | Redis-backed fixed-window rate limiting.                                                            |
@@ -611,7 +612,9 @@ Starter mode uses a shared deployment password. The login route verifies
 database. `lib/session.ts` and `lib/eve-auth.ts` verify the same cookie for the
 Next.js UI and eve route boundary.
 
-Production mode uses Better Auth with Sign in with Vercel.
+Production mode uses Better Auth with email and password accounts. A social
+provider is optional and off unless `AUTH_SOCIAL_PROVIDER`,
+`AUTH_SOCIAL_CLIENT_ID`, and `AUTH_SOCIAL_CLIENT_SECRET` are all set.
 
 `lib/auth-url.ts` resolves the base app URL in this order:
 
@@ -623,14 +626,19 @@ Production mode uses Better Auth with Sign in with Vercel.
 `lib/auth.ts` configures Better Auth with:
 
 - Drizzle adapter
-- encrypted OAuth tokens
-- Vercel social provider
-- required scopes: `openid`, `email`, `profile`
+- email and password sign-in, hashed by Better Auth, minimum 12 characters
+- `BETTER_AUTH_SECRET`, which has no default: account mode throws without it
+- the optional social provider resolved by `lib/social-provider.ts`
+- encrypted OAuth tokens and same-email account linking
 - `/auth/error` as the error page
 
+`app/api/auth/[...all]/route.ts` rate limits `POST /api/auth/sign-in/email` and
+`POST /api/auth/sign-up/email` per client address through the same Redis
+limiter the chat actions use, before any database work.
+
 `lib/session.ts` returns a safe `Viewer` object for server components. It returns
-the shared starter viewer, local development viewer, or Vercel user depending
-on the selected mode.
+the shared starter viewer, local development viewer, or signed-in account
+depending on the selected mode.
 
 `lib/eve-auth.ts` adapts the selected app session into an eve channel principal.
 Production mode uses:
@@ -664,13 +672,14 @@ with Vercel OIDC contexts.
 ```ts
 type SetupStatus = {
   appReady: boolean;
-  authMode: "local-dev" | "password" | "unconfigured" | "vercel";
+  authMode: "account" | "local-dev" | "password" | "unconfigured";
   authReady: boolean;
   databaseConfigured: boolean;
   databaseReady: boolean;
   databaseSchemaReady: boolean;
   missing: readonly string[];
   rateLimitReady: boolean;
+  socialProvider: { id: string; label: string } | null;
   storageMode: "browser" | "database";
 };
 ```
@@ -682,7 +691,7 @@ selected when all of these are configured:
 
 - `DATABASE_URL` exists
 - database migrations have created the expected tables
-- Better Auth env vars are present
+- `BETTER_AUTH_SECRET` is present
 - `REDIS_URL` is present
 
 Production mode then checks whether these Postgres tables exist:
@@ -797,9 +806,9 @@ That keeps errors from pushing the composer or chat body around.
 Common setup errors:
 
 - missing or short `EVE_CHAT_PASSWORD` in starter mode
-- incomplete `DATABASE_URL`, Better Auth/Vercel OAuth, or `REDIS_URL` configuration
+- incomplete `DATABASE_URL`, `BETTER_AUTH_SECRET`, or `REDIS_URL` configuration
 - production migrations not run
-- Vercel OAuth app missing the `email` scope
+- an optional social provider whose OAuth app returns no email address
 
 Common stream errors:
 

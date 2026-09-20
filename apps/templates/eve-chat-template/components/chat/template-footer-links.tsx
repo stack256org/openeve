@@ -22,7 +22,7 @@ Use the repository README, docs/setup-and-deploy.md, and scripts/setup.sh as the
 3. Run ./scripts/setup.sh, which installs dependencies, creates .env.local, and generates a strong EVE_CHAT_PASSWORD and BETTER_AUTH_SECRET. Do not print them.
 4. Set ANTHROPIC_API_KEY in .env.local.
 5. Start the app locally with pnpm dev and verify the chat page loads, password sign-in works, sending a message creates a chat, and refreshing restores it from browser storage.
-6. Deploy to the host I name, setting ANTHROPIC_API_KEY and EVE_CHAT_PASSWORD in its environment. Do not set up Postgres, Redis, a Vercel OAuth app, or run migrations unless I explicitly ask to upgrade to production persistence.
+6. Deploy to the host I name, setting ANTHROPIC_API_KEY and EVE_CHAT_PASSWORD in its environment. Do not set up Postgres, Redis, or run migrations unless I explicitly ask to upgrade to production persistence.
 7. Report the local URL, production URL, any steps I still need to complete, and any files you changed.
 
 Do not print secrets in the final answer. Ask before deleting or overwriting any existing project files.`;

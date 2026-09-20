@@ -1,6 +1,6 @@
 # eve Chat Template
 
-A Next.js chat template for [eve](https://eve.dev) that starts with password access and browser-persisted chats, then upgrades to durable memory, Sign in with Vercel, any Postgres, and any Redis when you need a production multi-user application.
+A Next.js chat template for [eve](https://eve.dev) that starts with password access and browser-persisted chats, then upgrades to durable memory, per-user email and password accounts, any Postgres, and any Redis when you need a production multi-user application.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?demo-description=A%20persisted%20Next.js%20chat%20template%20for%20eve%2C%20built%20with%20shadcn%2Fui%2C%20Tailwind%20CSS%2C%20Streamdown%2C%20Better%20Auth%2C%20Drizzle%2C%20and%20Postgres.&demo-image=https%3A%2F%2Fimages.ctfassets.net%2Fe5382hct74si%2FYXYTquqpBmvVFbASdIvrC%2Fbb50d21ba7866882d90e25d842b6fc02%2Feve-chat-no-bg.png&demo-title=eve%20Chat%20Template&demo-url=https%3A%2F%2Fchat.eve.dev&env=ANTHROPIC_API_KEY%2CEVE_CHAT_PASSWORD&envDescription=Your%20Anthropic%20API%20key%2C%20plus%20a%20strong%20password%20to%20protect%20your%20agent%20%2816%2B%20characters%20recommended%29.&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Fblob%2Fmain%2Fapps%2Ftemplates%2Feve-chat-template%2Fdocs%2Fsetup-and-deploy.md&from=templates&project-name=eve%20Chat%20Template&repository-name=eve-chat-template&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Ftree%2Fmain%2Fapps%2Ftemplates%2Feve-chat-template)
 
@@ -24,11 +24,11 @@ shares the same agent identity and connection grants.
 
 ## Deployment Modes
 
-| Mode              | Selected when                                                                     | Authentication                            | Chat persistence     | Long-term memory     |
-| ----------------- | --------------------------------------------------------------------------------- | ----------------------------------------- | -------------------- | -------------------- |
-| Starter           | `EVE_CHAT_PASSWORD` is configured                                                 | Shared password and secure session cookie | Browser localStorage | Shared, one document |
-| Production        | `DATABASE_URL`, `REDIS_URL`, and all Sign in with Vercel variables are configured | Sign in with Vercel                       | Postgres             | Per-user document    |
-| Local development | Neither mode is configured and `next dev` is running locally                      | Local development identity                | Browser localStorage | Process-local        |
+| Mode              | Selected when                                                        | Authentication                               | Chat persistence     | Long-term memory     |
+| ----------------- | -------------------------------------------------------------------- | -------------------------------------------- | -------------------- | -------------------- |
+| Starter           | `EVE_CHAT_PASSWORD` is configured                                    | Shared password and secure session cookie    | Browser localStorage | Shared, one document |
+| Production        | `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `REDIS_URL` are configured | Email and password, optional social provider | Postgres             | Per-user document    |
+| Local development | Neither mode is configured and `next dev` is running locally         | Local development identity                   | Browser localStorage | Process-local        |
 
 Production mode takes precedence when its complete environment is present. The app fails closed in a production deployment when neither mode is configured. See [Setup and Deployment](docs/setup-and-deploy.md) for the upgrade path.
 
@@ -59,21 +59,27 @@ Production mode requires:
 ```bash
 # Any Postgres, for example postgresql://user:password@localhost:5432/eve_chat
 DATABASE_URL=
+# Generate with: openssl rand -base64 32
 BETTER_AUTH_SECRET=
-NEXT_PUBLIC_VERCEL_APP_CLIENT_ID=
-VERCEL_APP_CLIENT_SECRET=
 # Any Redis, for example redis://localhost:6379
 REDIS_URL=
 ```
 
 `DATABASE_URL` and `REDIS_URL` take an ordinary connection string, so a container on
 your laptop, a managed service, or a database on the same host all work the same way.
-`NEXT_PUBLIC_VERCEL_APP_CLIENT_ID` and `VERCEL_APP_CLIENT_SECRET` come from a Vercel
-OAuth app; Sign in with Vercel is the only identity provider this template wires up.
+`BETTER_AUTH_SECRET` has no default: production mode refuses to start without it.
+Visitors sign up and sign in with an email address and a password, which Better Auth
+hashes itself, so production mode needs no third-party account.
 
 Other optional environment variables:
 
 ```bash
+# One social sign-in button beside email and password. Supported providers:
+# discord, github, gitlab, google, microsoft, vercel. Set all three or none.
+AUTH_SOCIAL_PROVIDER=
+AUTH_SOCIAL_CLIENT_ID=
+AUTH_SOCIAL_CLIENT_SECRET=
+
 # Override the app origin for custom production domains.
 BETTER_AUTH_URL=
 
@@ -105,7 +111,8 @@ pnpm dev
 
 - Text chat with an eve agent through same-origin `/eve/v1/*` routes
 - Password access with browser-backed chat history by default
-- Optional Better Auth sign-in with Vercel
+- Better Auth email and password accounts in production mode
+- Optional social sign-in: Discord, GitHub, GitLab, Google, Microsoft, or Vercel
 - Optional Postgres-backed cross-device chat history
 - Optional Redis rate limiting in production mode
 - Optional long-term memory (per user in production mode)

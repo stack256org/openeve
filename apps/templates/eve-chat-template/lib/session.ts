@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import type { SetupStatus, Viewer } from "@/lib/chat/types";
 import { getPasswordSessionFromHeaders } from "@/lib/password-auth";
 import { getSetupStatus } from "@/lib/setup";
@@ -28,12 +28,12 @@ export async function getServerViewer(setupStatus?: SetupStatus): Promise<Viewer
     return getPasswordSessionFromHeaders(requestHeaders) ? PASSWORD_VIEWER : null;
   }
 
-  if (status.authMode !== "vercel") {
+  if (status.authMode !== "account") {
     return null;
   }
 
   try {
-    const session = await auth.api.getSession({
+    const session = await getAuth().api.getSession({
       headers: requestHeaders,
     });
 

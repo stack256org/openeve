@@ -1,6 +1,6 @@
 # Setup and Deployment
 
-This guide covers the database-free starter, local development, long-term memory, the production persistence upgrade, Sign in with Vercel, and optional connections.
+This guide covers the database-free starter, local development, long-term memory, the production persistence upgrade, account sign-in, and optional connections.
 
 ## Prerequisites
 
@@ -65,17 +65,18 @@ This template enables Blob-backed memory only from the `EVE_MEMORY_BLOB_*` varia
 
 ## Production Persistence Upgrade
 
-Configure a database, a Redis, and Sign in with Vercel to switch the same codebase into production mode. Production mode uses per-user identity, per-user long-term memory, database-backed per-user history, and distributed rate limiting.
+Configure a database, a Redis, and a Better Auth secret to switch the same codebase into production mode. Production mode uses per-user identity, per-user long-term memory, database-backed per-user history, and distributed rate limiting.
 
 ```bash
 # Any Postgres.
 DATABASE_URL=postgresql://user:password@localhost:5432/eve_chat
+# openssl rand -base64 32
 BETTER_AUTH_SECRET=
-NEXT_PUBLIC_VERCEL_APP_CLIENT_ID=
-VERCEL_APP_CLIENT_SECRET=
 # Any Redis.
 REDIS_URL=redis://localhost:6379
 ```
+
+Those three variables are the whole requirement. Sign-in is email and password, so production mode needs no account with any other service.
 
 Once all production environment variables are present, production mode takes precedence over `EVE_CHAT_PASSWORD`. Run migrations after the first production deployment.
 
@@ -123,46 +124,40 @@ BETTER_AUTH_SECRET=<generated-secret>
 
 Set the same value in your host's environment. `./scripts/setup.sh` generates one for local development.
 
-## Sign in with Vercel
+`BETTER_AUTH_SECRET` has no default value. It signs session cookies and salts stored password hashes, so production mode raises an error instead of falling back to a shared constant when it is missing.
 
-Sign in with Vercel is the identity provider this template wires up, and production mode requires it regardless of where the app is hosted. Create a Vercel App / OAuth client for the account or team that owns the project, starting with the [Sign in with Vercel prerequisites](https://vercel.com/docs/sign-in-with-vercel/getting-started#prerequisites).
+## Accounts and Sign-In
 
-Required scopes:
+Production mode signs people in with an email address and a password. Better Auth owns the credential flow end to end: it hashes the password with its own implementation, stores the hash in the `account` table, and issues the session cookie. No third-party account is involved.
 
-```text
-openid
-email
-profile
-```
+Passwords must be at least 12 characters. Signing up creates the account and signs that person in; there is no email verification step, so the template needs no outbound mail service.
 
-In the Vercel App dashboard UI, open the app's scopes/permissions settings and toggle all three scopes on. These are Vercel App permissions, not environment variables.
+`POST /api/auth/sign-in/email` and `POST /api/auth/sign-up/email` are rate limited per client address through the same Redis limiter the chat actions use, before any database work happens.
 
-The email scope is mandatory. Without it, Better Auth redirects to:
+Anyone who can reach a production deployment can create an account. Put the deployment behind your own network controls, or stay in starter mode, when it is meant for a single operator.
 
-```text
-/auth/error?error=email_not_found
-```
+## Optional Social Sign-In
 
-Add callback URLs for every origin you will use:
-
-```text
-http://localhost:3000/api/auth/callback/vercel
-http://localhost:3001/api/auth/callback/vercel
-https://<your-production-domain>/api/auth/callback/vercel
-```
-
-Use the `3001` callback only if you run local dev on port 3001.
-
-Copy the Vercel App client ID and client secret into your environment:
+A social provider adds one button below the email and password form. It is off by default, and with no provider configured that button does not render at all.
 
 ```bash
-NEXT_PUBLIC_VERCEL_APP_CLIENT_ID=<client-id>
-VERCEL_APP_CLIENT_SECRET=<client-secret>
+AUTH_SOCIAL_PROVIDER=github
+AUTH_SOCIAL_CLIENT_ID=<client-id>
+AUTH_SOCIAL_CLIENT_SECRET=<client-secret>
 ```
 
-`NEXT_PUBLIC_VERCEL_APP_CLIENT_ID` is intentionally public. `VERCEL_APP_CLIENT_SECRET` and `BETTER_AUTH_SECRET` must stay secret.
+`AUTH_SOCIAL_PROVIDER` accepts `discord`, `github`, `gitlab`, `google`, `microsoft`, or `vercel`. Set all three variables or none: a provider without both credentials logs a warning and leaves social sign-in off.
 
-To swap in a different provider, replace the `vercel` entry in `socialProviders` in `lib/auth.ts` with any [Better Auth social provider](https://better-auth.com/docs/concepts/oauth) and update the sign-in button copy.
+Create the OAuth app in that provider's own dashboard, grant it whatever scope returns the user's email address, and add a callback URL for every origin you use:
+
+```text
+http://localhost:3000/api/auth/callback/<provider>
+https://<your-production-domain>/api/auth/callback/<provider>
+```
+
+Sign-in redirects to `/auth/error?error=email_not_found` when the provider returns no email address, because Better Auth needs one to create the account.
+
+To use a Better Auth provider that is not in the list above, add its id and display name to `SOCIAL_PROVIDER_LABELS` in `lib/social-provider.ts`.
 
 ## App URL
 
@@ -216,7 +211,7 @@ Or run it on port 3001:
 PORT=3001 pnpm dev -p 3001
 ```
 
-Open the matching local URL and make sure the Vercel App contains the same callback URL.
+Open the matching local URL. If you configured a social provider, make sure its OAuth app lists the same callback URL.
 
 ## Optional Integrations
 
@@ -259,11 +254,13 @@ pnpm dlx vercel@latest --prod
 
 If chat is disabled and says setup is required, check the tooltip. Missing migrations will show as `database migrations`; run `pnpm db:migrate` with the production `DATABASE_URL` exported.
 
-If sign-in redirects to `/auth/error?error=email_not_found`, enable the email scope in your Vercel App. See [Sign in with Vercel scopes](https://vercel.com/docs/sign-in-with-vercel/scopes-and-permissions).
+If sign-in redirects to `/auth/error?error=auth_env_missing`, set `BETTER_AUTH_SECRET` and restart.
 
-If sign-in redirects to `/auth/error?error=invalid_scope`, make sure the Vercel App has `openid`, `email`, and `profile` enabled.
+If a sign-in attempt answers with `Too many attempts`, the credential rate limit is doing its job; wait for the window to pass or raise the limit in `app/api/auth/[...all]/route.ts`.
 
-If sign-in redirects to an auth error after the OAuth consent screen, confirm that the callback URL exactly matches your browser origin, including port and `/api/auth/callback/vercel`.
+If social sign-in redirects to `/auth/error?error=email_not_found` or `error=invalid_scope`, grant the OAuth app the scope that returns the user's email address.
+
+If social sign-in redirects to an auth error after the provider's consent screen, confirm that the callback URL exactly matches your browser origin, including port and `/api/auth/callback/<provider>`.
 
 If `pnpm db:migrate` says `DATABASE_URL` is missing, export it in the same shell first: Drizzle reads the process environment, not `.env.local`.
 
@@ -274,6 +271,5 @@ If Notion tool calls fail, confirm that `NOTION_API_KEY` is set in the environme
 ## Useful Links
 
 - [eve documentation](https://eve.dev/docs)
+- [Better Auth email and password](https://better-auth.com/docs/authentication/email-password)
 - [Better Auth social providers](https://better-auth.com/docs/concepts/oauth)
-- [Sign in with Vercel prerequisites](https://vercel.com/docs/sign-in-with-vercel/getting-started#prerequisites)
-- [Sign in with Vercel scopes](https://vercel.com/docs/sign-in-with-vercel/scopes-and-permissions)

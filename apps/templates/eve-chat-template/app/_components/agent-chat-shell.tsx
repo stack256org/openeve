@@ -393,6 +393,7 @@ export function AgentChatShell({
           }}
           onOpenChange={setAuthDialogOpen}
           open={authDialogOpen}
+          socialProvider={setupStatusState.socialProvider}
         />
       </div>
     </ChatShellProvider>

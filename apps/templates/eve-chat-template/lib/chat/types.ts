@@ -1,4 +1,5 @@
 import type { ClientSessionState, MessageStreamEvent } from "eve/client";
+import type { SocialProviderId } from "@/lib/social-provider";
 
 export type Viewer = {
   readonly email: string;
@@ -7,8 +8,13 @@ export type Viewer = {
   readonly name: string;
 };
 
-export type AuthMode = "local-dev" | "password" | "unconfigured" | "vercel";
+export type AuthMode = "account" | "local-dev" | "password" | "unconfigured";
 export type StorageMode = "browser" | "database";
+
+export type SocialProvider = {
+  readonly id: SocialProviderId;
+  readonly label: string;
+};
 
 export type ChatListItem = {
   readonly id: string;
@@ -39,5 +45,6 @@ export type SetupStatus = {
   readonly databaseSchemaReady: boolean;
   readonly missing: readonly string[];
   readonly rateLimitReady: boolean;
+  readonly socialProvider: SocialProvider | null;
   readonly storageMode: StorageMode;
 };

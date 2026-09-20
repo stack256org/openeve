@@ -1,12 +1,9 @@
-import type { SetupStatus } from "@/lib/chat/types";
+import type { SetupStatus, SocialProvider } from "@/lib/chat/types";
 import { isDatabaseConfigured, isDatabaseSchemaReady } from "@/lib/db/client";
+import { getSocialProvider } from "@/lib/social-provider";
 
 const PASSWORD_ENV_KEY = "EVE_CHAT_PASSWORD";
-const AUTH_ENV_KEYS = [
-  "BETTER_AUTH_SECRET",
-  "NEXT_PUBLIC_VERCEL_APP_CLIENT_ID",
-  "VERCEL_APP_CLIENT_SECRET",
-] as const;
+const AUTH_SECRET_ENV_KEY = "BETTER_AUTH_SECRET";
 
 const CONNECTION_ENV_KEYS = ["LINEAR_API_KEY", "NOTION_API_KEY", "SENTRY_AUTH_TOKEN"] as const;
 
@@ -17,7 +14,7 @@ function hasEnv(name: string) {
 }
 
 export function isAuthConfigured() {
-  return AUTH_ENV_KEYS.every(hasEnv);
+  return hasEnv(AUTH_SECRET_ENV_KEY);
 }
 
 export function isPasswordConfigured() {
@@ -54,10 +51,10 @@ function createSetupStatus({
   readonly databaseSchemaReady: boolean;
 }): SetupStatus {
   const databaseConfigured = isDatabaseConfigured();
-  const vercelAuthReady = isAuthConfigured();
+  const accountAuthReady = isAuthConfigured();
   const rateLimitReady = isRateLimitConfigured();
   const databaseReady = databaseConfigured && databaseSchemaReady;
-  const fullEnvironmentReady = databaseConfigured && vercelAuthReady && rateLimitReady;
+  const fullEnvironmentReady = databaseConfigured && accountAuthReady && rateLimitReady;
   const passwordReady = isPasswordConfigured();
   const localDevReady = isLocalDevelopment();
   const connectionsAvailable = localDevReady || CONNECTION_ENV_KEYS.some(hasEnv);
@@ -65,14 +62,15 @@ function createSetupStatus({
   if (fullEnvironmentReady) {
     return {
       appReady: databaseReady,
-      authMode: "vercel",
-      authReady: vercelAuthReady,
+      authMode: "account",
+      authReady: accountAuthReady,
       connectionsAvailable,
       databaseConfigured,
       databaseReady,
       databaseSchemaReady,
       missing: databaseSchemaReady ? [] : ["database migrations"],
       rateLimitReady,
+      socialProvider: getSocialProviderStatus(),
       storageMode: "database",
     };
   }
@@ -88,6 +86,7 @@ function createSetupStatus({
       databaseSchemaReady,
       missing: [],
       rateLimitReady,
+      socialProvider: null,
       storageMode: "browser",
     };
   }
@@ -100,10 +99,26 @@ function createSetupStatus({
     databaseConfigured,
     databaseReady,
     databaseSchemaReady,
-    missing: [PASSWORD_ENV_KEY, "or DATABASE_URL, Better Auth/Vercel OAuth, and REDIS_URL"],
+    missing: [
+      PASSWORD_ENV_KEY,
+      `or DATABASE_URL, ${AUTH_SECRET_ENV_KEY}, and ${RATE_LIMIT_ENV_KEY}`,
+    ],
     rateLimitReady,
+    socialProvider: null,
     storageMode: "browser",
   };
+}
+
+// Only the public half of the provider config crosses to the browser; the
+// client id and secret stay on the server.
+function getSocialProviderStatus(): SocialProvider | null {
+  const provider = getSocialProvider();
+
+  if (!provider) {
+    return null;
+  }
+
+  return { id: provider.id, label: provider.label };
 }
 
 function isLocalDevelopment() {
