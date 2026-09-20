@@ -162,10 +162,26 @@ config. Use an OpenAI-compatible provider with an explicit `baseURL`:
 ```ts
 import { createOpenAI } from "@ai-sdk/openai";
 
-const xai = createOpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: "https://api.x.ai/v1" });
+const xai = createOpenAI({
+  apiKey: process.env.XAI_API_KEY,
+  baseURL: "https://api.x.ai/v1",
+  name: "xai",
+});
 
 export default defineAgent({ model: xai.chat("grok-4.5") });
 ```
+
+**`name` is required, and omitting it breaks the build rather than a request.**
+The provider id defaults to `openai`, and eve builds the model's catalogue slug
+from that id, so `createOpenAI({ baseURL: "https://api.x.ai/v1" })` asks eve for
+`openai/grok-4.5`. Compilation then fails with
+
+> Cannot compile agent compaction because the primary compaction trigger model
+> `openai/grok-4.5` does not have known AI Gateway context window metadata.
+
+`tsc` is green the whole time — this one only shows up under `eve info` or
+`eve build`. Set `name` to the real provider slug (`xai`, `moonshotai`,
+`google`) and the lookup resolves.
 
 **`.chat(...)`, not the bare callable.** `createOpenAI(...)(id)` resolves to the
 Responses API — its type is `(modelId: OpenAIResponsesModelId)` — so

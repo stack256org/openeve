@@ -7,6 +7,9 @@ import { defineEvalConfig } from "eve/evals";
 const google = createOpenAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+  // Without `name`, the provider id stays `openai` and eve builds the catalogue
+  // slug as `openai/<model>`, which has no context-window metadata.
+  name: "google",
 });
 
 /**
