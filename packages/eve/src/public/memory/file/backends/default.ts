@@ -1,3 +1,4 @@
+import { resolveHostProvider } from "#internal/host/provider.js";
 import { isEveDevEnvironment } from "#internal/application/dev-environment.js";
 import type { MemoryDocumentBackend } from "#public/memory/file/backend.js";
 import { inMemory } from "#public/memory/file/backends/in-memory.js";
@@ -21,7 +22,7 @@ const ENVIRONMENT_PROBES: DefaultFileMemoryBackendProbes = {
   vercelBlobCredentials: () =>
     credentialsFromEnvironment("EVE_MEMORY_BLOB") ?? credentialsFromEnvironment("BLOB"),
   isEveDevelopment: isEveDevEnvironment,
-  isDeployedOnVercel: () => hasEnvironmentValue("VERCEL"),
+  isDeployedOnVercel: () => resolveHostProvider() === "vercel",
 };
 const DEVELOPMENT_BACKEND = inMemory();
 
@@ -48,10 +49,6 @@ function selectDefaultFileMemoryBackend(
   // Self-hosted deployments need no configuration: the shared data/openeve.db
   // travels with the rest of the agent's durable state.
   return sqlite();
-}
-
-function hasEnvironmentValue(name: string): boolean {
-  return Boolean(process.env[name]?.trim());
 }
 
 function credentialsFromEnvironment(
