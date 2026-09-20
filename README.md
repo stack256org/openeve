@@ -33,17 +33,20 @@ skills, subagents, schedules, and the terminal UI.
 Some things a reader might expect from the name are deliberately still as upstream
 left them:
 
-- **The package is still named `eve`.** Imports are still `eve`, `eve/tools`, and so on.
-  The package name is also the import specifier, so renaming it would rewrite roughly
-  1,600 import sites and make every upstream merge conflict on them. Install open-eve
-  from this repository; `npm install eve` installs upstream eve.
+- **The import specifier is still `eve`.** Imports are still `eve`, `eve/tools`, and so
+  on. The package name is also the import specifier, so renaming it would rewrite
+  roughly 1,600 import sites and make every upstream merge conflict on them. open-eve
+  publishes as `@stack256org/openeve` and installs under the `eve` alias:
+  `npm install eve@npm:@stack256org/openeve@latest`. A bare `npm install eve` installs
+  upstream eve.
 - **The CLI answers to both `eve` and `openeve`.** They are the same binary.
 - **`eve add` still resolves `https://eve.dev/r`.** No open-eve registry is hosted yet.
   Override it with `EVE_DEV_OFFICIAL_REGISTRY_URL`, or point at your own with
   `eve registry add`.
-- **`eve-software-factory-template` still requires Vercel Sandbox.** It needs
-  credential brokering into the sandbox, which the Docker backend refuses to do. The
-  other eleven templates run with nothing hosted.
+- **`eve-software-factory-template` runs on fewer machines than the rest.** It needs a
+  sandbox that brokers a GitHub credential without exposing it, which the Docker
+  backend refuses to do, so it uses microsandbox — Apple Silicon macOS or Linux with
+  KVM. The other eleven templates run anywhere Node.js does.
 
 [`open-eve/DEFERRED.md`](open-eve/DEFERRED.md) is the full list of what is not built yet
 and why.

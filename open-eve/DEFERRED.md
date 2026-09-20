@@ -150,26 +150,28 @@ those windows short.
 
 ---
 
-## 6. The package is still called `eve`
+## 6. The package is published under a different name than you import
 
-**What it would do.** Publishing open-eve to npm under its own name, so you
-could install it the ordinary way.
+**What happens.** open-eve is on npm as `@stack256org/openeve`. You still write
+`import { defineAgent } from "eve"` in your own code, because the scaffolding
+installs it under the name `eve`:
 
-**Why it is not built.** In JavaScript, a package's name is also the word you
-type when you import it. Renaming `eve` to `open-eve` would mean editing about
-1,600 lines across the project that all say `eve`. Every one of those lines
-would then differ from Vercel's version, and every time we pull in their
-updates, all 1,600 would have to be reconciled by hand. Keeping open-eve
-current with eve is the whole point of the fork, so that trade is not worth
-making.
+```json
+"dependencies": { "eve": "npm:@stack256org/openeve@^0.63.0" }
+```
 
-**Does it matter to you?** A little. You install open-eve by cloning this
-repository and building it, not with `npm install`. `npm install eve` gives
-you Vercel's version, not this one. Everything after that is the same.
+`openeve init` writes that line for you. If you add it to an existing project by
+hand, write it the same way — a plain `"eve": "^0.63.0"` installs Vercel's
+package instead.
 
-**When.** Only if open-eve is published to npm as its own package. That is a
-decision nobody has made yet. If it happens, the rename lands as one commit
-that changes nothing else.
+**Why the two names.** In JavaScript a package's name is also the word you type
+when you import it. Calling the package `open-eve` outright would mean editing
+about 1,600 lines across the project that all say `eve`, and every one of them
+would then differ from Vercel's version, to be reconciled by hand on every
+update. The alias buys the published name without any of that.
+
+**Does it matter to you?** Only when you install by hand. Everything else —
+imports, the `eve` and `openeve` commands, the docs — reads the same.
 
 ---
 
