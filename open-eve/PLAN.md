@@ -856,6 +856,51 @@ pnpm guard:invariants && node ./scripts/check-docs.mjs
 git commit -s -m "feat(open-eve): add the sqliteState() Chat SDK state adapter"
 ```
 
+**Task 7 landed as `9114ed18e`.** Two findings came out of it that the plan did
+not anticipate.
+
+The first was a live bug in Task 1's store, fixed in the same commit:
+`openSqliteStore` ran `PRAGMA journal_mode = WAL` before `PRAGMA busy_timeout`.
+The journal-mode switch takes an exclusive lock, so a second process opening
+`data/openeve.db` at the same moment failed outright with
+`SQLITE_ERROR: database is locked` rather than waiting. This affected the
+`sqlite()` memory backend equally. Pragma order is now busy_timeout first.
+
+The second is Task 7b, below.
+
+### Task 7b: Vendor chat's second declaration chunk
+
+**Files:** `packages/eve/scripts/vendor-compiled/chat.mjs`
+
+**The entire vendored `chat` type surface is `any` today.** chat@4.34.0 emits two
+content-hashed declaration chunks, `jsx-runtime-_JEEAotp.d.ts` and
+`messages-BSoJG691.d.ts`. The copier's `discoverExtraFiles` filter matches only
+`/^jsx-runtime-[^./]+\.d\.ts$/`, so the messages chunk is never copied.
+`.generated/compiled/chat/index.d.ts` re-exports `StateAdapter`, `Lock`,
+`QueueEntry`, `Message`, `Thread`, and `Author` from that missing file, and
+`skipLibCheck` swallows the unresolved import, so every one of them degrades to
+`any`. Verified with a probe asserting `0 extends 1 & StateAdapter`, which
+compiles clean.
+
+This defeats the copier's own stated purpose, quoted from its docblock: "the
+public type contract has to be the _actual_ chat shape — hand-written stubs
+would drift on every version bump." It is a bug in eve, not in open-eve, and is
+a good upstream PR candidate.
+
+The fix is to match any content-hashed sibling chunk rather than one chunk by
+name. Hardcoding `jsx-runtime-` is what broke: the hash changes every release,
+and so does the set of chunks.
+
+**Consequence to handle in the same commit.** Restoring real types surfaces
+roughly nine pre-existing errors, eight of them a missing `Author.fullName` in
+linq and photon test fixtures, and one a `Thread<unknown, unknown>` variance
+issue at `chatSdkChannel.ts:283`. Typecheck must be green before commit, so
+these are part of the task, not follow-up.
+
+**Sequencing.** Do this when no other agent is working in the tree. Regenerating
+`.generated/` mid-flight makes an unrelated agent's `typecheck` gate fail with
+errors it did not cause.
+
 ---
 
 ## Milestone 3 — Scaffolds

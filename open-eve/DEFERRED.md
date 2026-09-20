@@ -54,7 +54,7 @@ be annoying.
 
 ## 3. Asking Vercel to accept one of our changes
 
-**What it would do.** open-eve has to change 19 small places in eve's code so it
+**What it would do.** open-eve has to change 14 small places in eve's code so it
 stops assuming it is running on Vercel. We could ask Vercel to make that change
 in their own code instead, since it would not alter how eve behaves for them.
 
