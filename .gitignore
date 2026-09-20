@@ -68,5 +68,3 @@ Thumbs.db
 .env*.local
 .env*
 
-# Local CLI validation scratch; never committed.
-demo/
