@@ -1,145 +1,66 @@
-import { spawnSync } from "node:child_process";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { createInterface } from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
-import { readManifest, repoRoot } from "./knowledge.mjs";
+import { readManifest } from "./knowledge.mjs";
 
-const statePath = resolve(repoRoot, ".vercel/eve-design-template.json");
-const projectPath = resolve(repoRoot, ".vercel/project.json");
-const vercelExecutable = process.platform === "win32" ? "vercel.cmd" : "vercel";
+const REQUIRED_ENV = [
+  ["ANTHROPIC_API_KEY", "Model credentials for agent/agent.ts."],
+  ["SLACK_BOT_TOKEN", 'Slack "Bot User OAuth Token" under OAuth & Permissions.'],
+  ["SLACK_SIGNING_SECRET", 'Slack "Signing Secret" under Basic Information.'],
+];
 
-function run(args, options = {}) {
-  const result = spawnSync(vercelExecutable, args, {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      VERCEL_USE_EXPERIMENTAL_FRAMEWORKS: "1",
-    },
-    stdio: options.capture ? ["inherit", "pipe", "inherit"] : "inherit",
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0 && !options.allowFailure) {
-    throw new Error(`vercel ${args.join(" ")} failed.`);
-  }
-  return options.capture ? result.stdout.trim() : result.status === 0;
+if (process.argv.includes("--help")) {
+  console.log(`Usage: pnpm run setup [--url https://<host>]
+
+Reports which required environment variables are missing and whether the design
+corpus is approved. With --url, probes a running agent's Eve health and Slack
+routes over HTTPS.`);
+  process.exit(0);
 }
 
-async function exists(path) {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
+function deploymentUrl() {
+  const index = process.argv.indexOf("--url");
+  if (index === -1) return undefined;
+  const raw = process.argv[index + 1];
+  if (!raw) throw new Error("--url needs a value, for example --url https://agent.example.com.");
+  const url = new URL(raw);
+  if (url.protocol !== "https:" && url.hostname !== "localhost") {
+    throw new Error("--url must be https, or http://localhost for a local check.");
   }
+  return url;
 }
 
-async function readState() {
-  try {
-    return JSON.parse(await readFile(statePath, "utf8"));
-  } catch {
-    return {};
+function reportEnvironment() {
+  const missing = REQUIRED_ENV.filter(([key]) => !process.env[key]?.trim());
+  for (const [key, hint] of REQUIRED_ENV) {
+    const status = process.env[key]?.trim() ? "set" : "MISSING";
+    console.log(`  ${key}: ${status}${status === "MISSING" ? ` — ${hint}` : ""}`);
   }
+  return missing.length === 0;
 }
 
-async function writeState(state) {
-  await mkdir(resolve(repoRoot, ".vercel"), { recursive: true });
-  await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
+async function probe(url, path, init) {
+  const response = await fetch(new URL(path, url), init);
+  return { body: (await response.text()).trim(), status: response.status };
 }
 
-function findConnectorUid(value) {
-  if (typeof value === "string") {
-    const match = value.match(/(?:scl_[A-Za-z0-9]+|slack\/[A-Za-z0-9_-]+)/);
-    return match?.[0];
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const match = findConnectorUid(item);
-      if (match) return match;
-    }
-  }
-  if (value && typeof value === "object") {
-    for (const item of Object.values(value)) {
-      const match = findConnectorUid(item);
-      if (match) return match;
-    }
-  }
-  return undefined;
-}
-
-function connectorFromOutput(raw) {
-  try {
-    return findConnectorUid(JSON.parse(raw));
-  } catch {
-    return findConnectorUid(raw);
-  }
-}
-
-async function createConnector(name, iconPath) {
-  console.log("Slack authorization will open in your browser.");
-  const args = ["connect", "create", "slack", "--name", name, "--triggers", "--format=json"];
-  if (iconPath) args.push("--icon", resolve(repoRoot, iconPath));
-  const raw = run(args, { capture: true });
-  const connectorUid = connectorFromOutput(raw);
-  if (!connectorUid) {
-    throw new Error(
-      "Slack connector was created, but its UID could not be read. Re-run setup and paste the UID from Vercel Connect.",
-    );
-  }
-  return connectorUid;
-}
-
-function vercelCurl(path, deploymentUrl, curlArgs = []) {
-  const output = run(
-    [
-      "curl",
-      path,
-      "--deployment",
-      deploymentUrl,
-      "--yes",
-      "--",
-      "--silent",
-      "--show-error",
-      ...curlArgs,
-      "--write-out",
-      "\n%{http_code}",
-    ],
-    { capture: true },
-  );
-  const match = output.match(/\n(\d{3})\s*$/);
-  if (!match) {
-    throw new Error(`Could not read the status for ${path}.`);
-  }
-  return {
-    body: output.slice(0, match.index).trim(),
-    status: Number(match[1]),
-  };
-}
-
-function validateRoutes(deploymentUrl) {
-  const health = vercelCurl("/eve/v1/health", deploymentUrl);
+async function validateRoutes(url) {
+  const health = await probe(url, "/eve/v1/health");
   if (health.status !== 200) {
     throw new Error(`Expected the Eve health route to return 200; received ${health.status}.`);
   }
-  let healthPayload;
+  let payload;
   try {
-    healthPayload = JSON.parse(health.body);
+    payload = JSON.parse(health.body);
   } catch {
     throw new Error("The Eve health route did not return JSON.");
   }
-  if (healthPayload.ok !== true || healthPayload.status !== "ready") {
+  if (payload.ok !== true || payload.status !== "ready") {
     throw new Error("The Eve health route did not report ready.");
   }
 
-  const slack = vercelCurl("/eve/v1/slack", deploymentUrl, [
-    "--request",
-    "POST",
-    "--header",
-    "Content-Type: application/json",
-    "--data",
-    "{}",
-  ]);
+  const slack = await probe(url, "/eve/v1/slack", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
   if (slack.status !== 401 || slack.body !== "unauthorized") {
     throw new Error(
       `Expected the unsigned Slack route to return 401 unauthorized; received ${slack.status} ${slack.body || "(empty body)"}.`,
@@ -147,61 +68,25 @@ function validateRoutes(deploymentUrl) {
   }
 }
 
-if (process.argv.includes("--help")) {
-  console.log(`Usage: pnpm run setup
+console.log("Checking the design agent setup.");
 
-Links a Vercel project, creates or reuses a Slack connector, attaches its
-production trigger, deploys production, and validates the Eve health and Slack
-routes.`);
-  process.exit(0);
-}
+console.log("\nEnvironment:");
+const environmentReady = reportEnvironment();
 
-console.log("Setting up the production design agent.");
-run(["--version"]);
-if (!run(["whoami"], { allowFailure: true })) {
-  console.log("Vercel authentication is required. A browser will open.");
-  run(["login"]);
-  run(["whoami"]);
-}
-
-if (!(await exists(projectPath))) {
-  run(["link"]);
-}
-
-const state = await readState();
 const manifest = await readManifest();
-const terminal = createInterface({ input, output });
-let connectorUid = process.env.SLACK_CONNECTOR ?? state.connectorUid ?? undefined;
-
-if (!connectorUid) {
-  const existing = (
-    await terminal.question("Existing Slack connector UID (leave blank to create one): ")
-  ).trim();
-  connectorUid = existing || (await createConnector(manifest.agent.name, manifest.agent.iconPath));
-}
-terminal.close();
-
-await writeState({ connectorUid });
-
-run(["connect", "detach", connectorUid, "--yes"], { allowFailure: true });
-run([
-  "connect",
-  "attach",
-  connectorUid,
-  "--triggers",
-  "--trigger-path",
-  "/eve/v1/slack",
-  "--environment",
-  "production",
-  "--yes",
-]);
-run(["env", "add", "SLACK_CONNECTOR", "production", "--value", connectorUid, "--force", "--yes"]);
-
-const deploymentOutput = run(["deploy", "--prod", "--yes", "--format=json"], { capture: true });
-const deploymentUrl = deploymentOutput.match(/https:\/\/[^\s"]+/)?.[0];
-if (!deploymentUrl) {
-  throw new Error("Production deployed, but its URL could not be read.");
+console.log(`\nKnowledge corpus: ${manifest.status}`);
+if (manifest.status !== "approved") {
+  console.log("  Run BOOTSTRAP.md and have the design owner approve the corpus.");
 }
 
-validateRoutes(deploymentUrl);
-console.log(`Production ready: ${deploymentUrl}`);
+const url = deploymentUrl();
+if (url) {
+  console.log(`\nProbing ${url.origin}`);
+  await validateRoutes(url);
+  console.log("  Eve health route ready; unsigned Slack requests rejected.");
+}
+
+if (!environmentReady) {
+  console.error("\nSet the missing variables in .env.local, or in your host's environment.");
+  process.exitCode = 1;
+}

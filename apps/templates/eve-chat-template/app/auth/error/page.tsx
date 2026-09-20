@@ -113,15 +113,15 @@ function getAuthErrorMessage(error?: string, description?: string) {
 
   if (error === "database_not_configured") {
     return {
-      title: "Neon is not connected",
-      body: "Connect Neon Postgres to this Vercel project so DATABASE_URL is available, then run database migrations and try signing in again.",
+      title: "Database is not configured",
+      body: "Set DATABASE_URL to a Postgres connection string, then run database migrations and try signing in again.",
     };
   }
 
   if (error === "database_migrations_missing") {
     return {
       title: "Database migrations are missing",
-      body: "Run production migrations with vercel env run -e production -- pnpm db:migrate, then try signing in again. This creates the Better Auth and chat tables.",
+      body: "Run production migrations with DATABASE_URL pointed at your production database: pnpm db:migrate. This creates the Better Auth and chat tables.",
     };
   }
 
@@ -146,7 +146,7 @@ function getAuthErrorMessage(error?: string, description?: string) {
   ) {
     return {
       title: "Database migrations may be missing",
-      body: "Run production migrations with vercel env run -e production -- pnpm db:migrate, then retry sign-in. This creates the Better Auth and chat tables.",
+      body: "Run production migrations with DATABASE_URL pointed at your production database: pnpm db:migrate, then retry sign-in. This creates the Better Auth and chat tables.",
     };
   }
 

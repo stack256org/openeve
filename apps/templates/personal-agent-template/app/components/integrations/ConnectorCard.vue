@@ -11,24 +11,18 @@ const emit = defineEmits<{
 
 const {
   status,
-  canConnect,
   isConnected,
   needsSetup,
   setupStatus,
   errorStatus,
   hintLines,
-  connecting,
   testing,
-  revoking,
-  showRevokeModal,
   showTestResults,
   testResults,
   actionError,
   parsedResults,
   resultsHeading,
-  connect,
   test,
-  revoke,
   clearResults,
 } = useConnector(
   () => props.connector,
@@ -69,48 +63,21 @@ const statusDotClass = computed(() => {
           </span>
         </div>
         <p class="truncate text-xs text-muted">
-          <span v-if="connector.connectedAs" class="text-toned">{{ connector.connectedAs }}</span>
-          <span v-if="connector.connectedAs" class="text-dimmed"> · </span>
           {{ connector.description }}
         </p>
       </div>
 
       <div class="flex shrink-0 items-center gap-1">
         <UButton
-          v-if="canConnect"
+          v-if="isConnected"
           color="neutral"
-          variant="soft"
+          variant="ghost"
           size="xs"
-          :loading="connecting"
-          trailing-icon="i-lucide-arrow-up-right"
-          @click="connect"
-        >
-          Connect
-        </UButton>
-
-        <template v-if="isConnected">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            icon="i-lucide-play"
-            :loading="testing"
-            aria-label="Test connection"
-            @click="test"
-          />
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            icon="i-lucide-unplug"
-            aria-label="Disconnect"
-            @click="
-              () => {
-                showRevokeModal = true;
-              }
-            "
-          />
-        </template>
+          icon="i-lucide-play"
+          :loading="testing"
+          aria-label="Test connection"
+          @click="test"
+        />
       </div>
     </div>
 
@@ -120,7 +87,7 @@ const statusDotClass = computed(() => {
       </p>
       <div v-if="hintLines.length" class="mt-2 space-y-1">
         <code
-          v-for="(line, index) in hintLines.filter(isCliHintLine)"
+          v-for="(line, index) in hintLines"
           :key="index"
           class="block rounded-md border border-default bg-elevated px-2 py-1 font-mono text-[11px] text-toned"
           >{{ line }}</code
@@ -164,26 +131,5 @@ const statusDotClass = computed(() => {
         </ul>
       </div>
     </div>
-
-    <UModal
-      v-model:open="showRevokeModal"
-      :title="`Disconnect ${connector.name}?`"
-      description="V will lose access until you connect again."
-    >
-      <template #footer>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          @click="
-            () => {
-              showRevokeModal = false;
-            }
-          "
-        >
-          Cancel
-        </UButton>
-        <UButton color="error" size="sm" :loading="revoking" @click="revoke"> Disconnect </UButton>
-      </template>
-    </UModal>
   </div>
 </template>

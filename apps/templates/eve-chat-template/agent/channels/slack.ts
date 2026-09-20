@@ -1,12 +1,7 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
 
-// SLACK_CONNECTOR is the UID returned by `vercel connect create slack`.
-// For local setup, create a connector with:
-// `vercel connect create slack --name eve-chat-template --triggers`.
-const slackConnector = process.env.SLACK_CONNECTOR ?? "slack/eve-chat-template";
-
+// Reads SLACK_BOT_TOKEN for outbound calls and SLACK_SIGNING_SECRET to verify
+// inbound webhooks. Both come from your own Slack app.
 export default slackChannel({
-  credentials: connectSlackCredentials(slackConnector),
   uploadPolicy: "disabled",
 });

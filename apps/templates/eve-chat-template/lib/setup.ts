@@ -8,12 +8,9 @@ const AUTH_ENV_KEYS = [
   "VERCEL_APP_CLIENT_SECRET",
 ] as const;
 
-const CONNECTION_ENV_KEYS = ["LINEAR_CONNECTOR", "NOTION_CONNECTOR", "SENTRY_CONNECTOR"] as const;
+const CONNECTION_ENV_KEYS = ["LINEAR_API_KEY", "NOTION_API_KEY", "SENTRY_AUTH_TOKEN"] as const;
 
-const RATE_LIMIT_ENV_GROUPS = [
-  ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
-  ["KV_REST_API_URL", "KV_REST_API_TOKEN"],
-] as const;
+const RATE_LIMIT_ENV_KEY = "REDIS_URL";
 
 function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim());
@@ -28,7 +25,7 @@ export function isPasswordConfigured() {
 }
 
 export function isRateLimitConfigured() {
-  return RATE_LIMIT_ENV_GROUPS.some((group) => group.every(hasEnv));
+  return hasEnv(RATE_LIMIT_ENV_KEY);
 }
 
 export function getInitialSetupStatus(): SetupStatus {
@@ -103,10 +100,7 @@ function createSetupStatus({
     databaseConfigured,
     databaseReady,
     databaseSchemaReady,
-    missing: [
-      PASSWORD_ENV_KEY,
-      "or DATABASE_URL, Better Auth/Vercel OAuth, and Upstash configuration",
-    ],
+    missing: [PASSWORD_ENV_KEY, "or DATABASE_URL, Better Auth/Vercel OAuth, and REDIS_URL"],
     rateLimitReady,
     storageMode: "browser",
   };

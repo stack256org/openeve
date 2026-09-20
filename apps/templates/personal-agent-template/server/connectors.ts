@@ -1,5 +1,5 @@
 import type { ConnectorDef } from "#shared/types/connector";
-import { GITHUB_CONNECTOR } from "#shared/connect";
+import { IntegrationTestError } from "~~/server/utils/errors";
 import { fetchLinearIssuesViaGraphql, fetchLinearIssuesViaMcp } from "~~/server/utils/linear-mcp";
 
 export const connectors: ConnectorDef[] = [
@@ -7,10 +7,9 @@ export const connectors: ConnectorDef[] = [
     id: "github",
     name: "GitHub",
     description: "Repositories, issues, pull requests, and CI workflows.",
-    connector: GITHUB_CONNECTOR,
+    envVar: "GITHUB_TOKEN",
     connectionName: "github",
     icon: "i-simple-icons-github",
-    scopes: ["repo"],
     test: {
       label: "List my repositories",
       run: async (token) => {
@@ -23,7 +22,7 @@ export const connectors: ConnectorDef[] = [
         });
 
         if (!res.ok) {
-          throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+          throw new IntegrationTestError(`GitHub API error: ${res.status} ${res.statusText}`);
         }
 
         const repos = (await res.json()) as Array<{ full_name: string }>;
@@ -35,10 +34,9 @@ export const connectors: ConnectorDef[] = [
     id: "linear",
     name: "Linear",
     description: "Issues, projects, cycles, and comments in your Linear workspace.",
-    connector: "mcp.linear.app/linear",
+    envVar: "LINEAR_API_KEY",
     connectionName: "linear",
     icon: "i-simple-icons-linear",
-    scopes: [],
     test: {
       label: "List my issues",
       run: async (token) => {
@@ -52,7 +50,9 @@ export const connectors: ConnectorDef[] = [
           return graphqlResult.results;
         }
 
-        throw new Error(mcpResult.error ?? graphqlResult.error ?? "Linear test failed");
+        throw new IntegrationTestError(
+          mcpResult.error ?? graphqlResult.error ?? "Linear test failed",
+        );
       },
     },
   },

@@ -17,19 +17,11 @@ export function connectorStatusLabel(state: ConnectorState) {
   switch (state) {
     case "connected":
       return { label: "Connected", color: "success" as const };
-    case "installation_required":
-      return { label: "Install required", color: "warning" as const };
     case "setup_required":
       return { label: "Setup required", color: "warning" as const };
-    case "error":
-      return { label: "Error", color: "error" as const };
     default:
-      return { label: "Not connected", color: "neutral" as const };
+      return { label: "Error", color: "error" as const };
   }
-}
-
-export function isCliHintLine(line: string) {
-  return line.startsWith("vercel ") || line.startsWith("Update ");
 }
 
 export function parseTestResult(line: string): ParsedTestResult {

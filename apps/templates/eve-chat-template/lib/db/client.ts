@@ -1,28 +1,39 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres, { type Sql } from "postgres";
 import * as schema from "@/lib/db/schema";
 
-let database: NeonHttpDatabase<typeof schema> | null = null;
+let client: Sql | null = null;
+let database: PostgresJsDatabase<typeof schema> | null = null;
 
 export function isDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL?.trim());
 }
 
-export function getDb() {
-  if (!database) {
+function getClient() {
+  if (!client) {
     const url = process.env.DATABASE_URL?.trim();
 
     if (!url) {
-      throw new Error("DATABASE_URL is required. Add Neon to this Vercel project first.");
+      throw new Error("DATABASE_URL is required. Point it at any Postgres database.");
     }
 
-    database = drizzle({ client: neon(url), schema });
+    // Transaction-mode poolers reject prepared statements, so the same
+    // connection string works whether it points at a pooler or at Postgres.
+    client = postgres(url, { prepare: false });
+  }
+
+  return client;
+}
+
+export function getDb() {
+  if (!database) {
+    database = drizzle({ client: getClient(), schema });
   }
 
   return database;
 }
 
-const databaseProxyTarget = {} as NeonHttpDatabase<typeof schema>;
+const databaseProxyTarget = {} as PostgresJsDatabase<typeof schema>;
 
 export const db = new Proxy(databaseProxyTarget, {
   get(_target, prop, receiver) {
@@ -31,14 +42,12 @@ export const db = new Proxy(databaseProxyTarget, {
 });
 
 export async function isDatabaseSchemaReady() {
-  const url = process.env.DATABASE_URL?.trim();
-
-  if (!url) {
+  if (!isDatabaseConfigured()) {
     return false;
   }
 
   try {
-    const sql = neon(url);
+    const sql = getClient();
     const rows = await sql`
       select
         to_regclass('public.account') is not null as account_ready,

@@ -1,27 +1,18 @@
 import { connectors } from "~~/server/connectors";
-import { probeStatus } from "~~/server/utils/connect";
+import { probeStatus } from "~~/server/utils/integrations";
 import { requireSessionUserId } from "~~/server/utils/session";
 
 export default defineEventHandler(async (event) => {
-  const userId = await requireSessionUserId(event);
+  await requireSessionUserId(event);
 
-  const summaries = await Promise.all(
-    connectors.map(async (connector) => {
-      const status = await probeStatus(connector, userId);
-
-      return {
-        id: connector.id,
-        name: connector.name,
-        description: connector.description,
-        icon: connector.icon,
-        connectorUid: connector.connector,
-        connectionName: connector.connectionName,
-        testLabel: connector.test.label,
-        status,
-        connectedAs: status.state === "connected" ? status.label : undefined,
-      };
-    }),
-  );
-
-  return summaries;
+  return connectors.map((connector) => ({
+    id: connector.id,
+    name: connector.name,
+    description: connector.description,
+    icon: connector.icon,
+    envVar: connector.envVar,
+    connectionName: connector.connectionName,
+    testLabel: connector.test.label,
+    status: probeStatus(connector),
+  }));
 });

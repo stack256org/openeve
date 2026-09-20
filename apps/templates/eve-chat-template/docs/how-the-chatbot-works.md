@@ -25,10 +25,10 @@ Important files:
 | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `agent/agent.ts`                        | Defines the eve agent and model.                                                                    |
 | `agent/channels/eve.ts`                 | Configures the eve web channel and auth adapters.                                                   |
-| `agent/channels/slack.ts`               | Configures the Slack channel route and Vercel Connect credentials.                                  |
-| `agent/connections/notion.ts`           | Defines the Notion MCP connection through Vercel Connect.                                           |
-| `agent/connections/linear.ts`           | Defines the Linear MCP connection through Vercel Connect.                                           |
-| `agent/connections/sentry.ts`           | Defines the Sentry MCP connection through Vercel Connect.                                           |
+| `agent/channels/slack.ts`               | Configures the Slack channel route; credentials come from the environment.                          |
+| `agent/connections/notion.ts`           | Defines the Notion MCP connection, authenticated with `NOTION_API_KEY`.                             |
+| `agent/connections/linear.ts`           | Defines the Linear MCP connection, authenticated with `LINEAR_API_KEY`.                             |
+| `agent/connections/sentry.ts`           | Defines the Sentry MCP connection, authenticated with `SENTRY_AUTH_TOKEN`.                          |
 | `agent/instructions.md`                 | Defines the agent's behavior and long-term-memory rules.                                            |
 | `agent/memory/profile.ts`               | Defines the per-principal long-term-memory slot.                                                    |
 | `next.config.ts`                        | Wraps the app with `withEve(nextConfig)`, which mounts the `/eve/v1/*` routes.                      |
@@ -53,7 +53,7 @@ Important files:
 | `lib/auth.ts`                           | Better Auth configuration with Sign in with Vercel.                                                 |
 | `lib/password-auth.ts`                  | Shared-password verification and stateless signed session cookies.                                  |
 | `lib/eve-auth.ts`                       | Converts password or Better Auth sessions into eve channel principals.                              |
-| `lib/rate-limit.ts`                     | Upstash Redis based fixed-window rate limiting.                                                     |
+| `lib/rate-limit.ts`                     | Redis-backed fixed-window rate limiting.                                                            |
 
 ## Runtime Model
 
@@ -89,10 +89,10 @@ Do not treat those indices as interchangeable.
 
 Long-term memory is separate from both app-chat persistence and eve session
 history. `agent/memory/profile.ts` scopes a bounded, model-maintained document
-to the authenticated eve principal. On Vercel, the slot stays disabled until an
-`EVE_MEMORY_BLOB_*` store is configured; generic `BLOB_*` variables are
-intentionally ignored. The setup script provisions that private Blob store. In
-local development, eve uses process-local memory.
+to the authenticated eve principal. eve stores the document in the local data
+directory, so memory works anywhere the filesystem persists. Vercel's filesystem
+does not, so there the slot stays disabled until an `EVE_MEMORY_BLOB_*` store is
+configured; generic `BLOB_*` variables are intentionally ignored.
 
 ## Rendering Strategy
 
@@ -587,26 +587,22 @@ If a connection is enabled, the context tells eve which of Notion, Linear, and
 Sentry the user enabled for this turn. Disabled connections are called out so
 the model does not use them unless the user enables them first.
 
-This toggle does not provision, create, or revoke a Vercel Connect connector. It
-only controls per-turn agent behavior.
+This toggle does not issue, rotate, or revoke a token. It only controls per-turn
+agent behavior.
 
-The actual MCP connectors are configured in `agent/connections/*.ts`. For
+The actual MCP connections are configured in `agent/connections/*.ts`. For
 example, Notion is configured in `agent/connections/notion.ts`:
 
 ```ts
-const notionConnector = process.env.NOTION_CONNECTOR ?? "notion";
-
 export default defineMcpClientConnection({
   url: "https://mcp.notion.com/mcp",
   description: "Notion workspace: search and edit pages and databases.",
-  auth: connect(notionConnector),
+  auth: { getToken: async () => ({ token: process.env.NOTION_API_KEY! }) },
 });
 ```
 
-For production, set `NOTION_CONNECTOR`, `LINEAR_CONNECTOR`, and
-`SENTRY_CONNECTOR` to the returned Vercel Connect connector UIDs. For local
-development, connectors created with `--name notion`, `--name linear`, and
-`--name sentry` match the fallback names.
+Set `NOTION_API_KEY`, `LINEAR_API_KEY`, and `SENTRY_AUTH_TOKEN` to tokens issued
+by those services. The same variables work locally and in production.
 
 ## Auth
 
@@ -687,7 +683,7 @@ selected when all of these are configured:
 - `DATABASE_URL` exists
 - database migrations have created the expected tables
 - Better Auth env vars are present
-- Upstash Redis env vars are present
+- `REDIS_URL` is present
 
 Production mode then checks whether these Postgres tables exist:
 
@@ -708,17 +704,13 @@ Disabled composers should always provide a reason through tooltip text.
 
 ## Rate Limiting
 
-Production-mode rate limiting uses Upstash Redis in `lib/rate-limit.ts`.
+Production-mode rate limiting uses Redis in `lib/rate-limit.ts`, reached through
+one variable:
 
-The app supports either current Upstash env names:
+- `REDIS_URL`
 
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
-
-or legacy Vercel KV env names:
-
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
+Any Redis works. When the variable is unset, `enforceRateLimit` returns without
+doing anything.
 
 `enforceRateLimit` uses a fixed window key:
 
@@ -805,7 +797,7 @@ That keeps errors from pushing the composer or chat body around.
 Common setup errors:
 
 - missing or short `EVE_CHAT_PASSWORD` in starter mode
-- incomplete Neon, Better Auth/Vercel OAuth, or Upstash configuration
+- incomplete `DATABASE_URL`, Better Auth/Vercel OAuth, or `REDIS_URL` configuration
 - production migrations not run
 - Vercel OAuth app missing the `email` scope
 
@@ -863,12 +855,12 @@ decisions when tool parts contain predictable JSON instead of prose-only output.
 
 ## Adding A New Connection
 
-To add another Vercel Connect-backed MCP connection:
+To add another MCP connection:
 
 1. Add `agent/connections/<name>.ts`.
 2. Use `defineMcpClientConnection`.
-3. Use `connect(process.env.<ENV_NAME> ?? "<local-name>")`.
-4. Add deploy/docs instructions for provisioning that connector.
+3. Use `auth: { getToken: async () => ({ token: process.env.<ENV_NAME>! }) }`.
+4. Add the variable to `.env.example` and the setup docs.
 5. Extend `EnabledConnections` in `chat-shell-context.tsx`.
 6. Add a toggle in `IntegrationsMenu`.
 7. Update `createConnectionClientContext` so eve receives per-turn intent.

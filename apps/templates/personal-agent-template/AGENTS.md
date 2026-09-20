@@ -57,7 +57,7 @@ Categories: [`shared/types/memory.ts`](shared/types/memory.ts). One prose block 
 
 - [`shared/agent.ts`](shared/agent.ts) — branding
 - [`agent/lib/base-instructions.ts`](agent/lib/base-instructions.ts) — persona
-- [`agent/channels/slack.ts`](agent/channels/slack.ts) — Slack Connect slug
+- [`agent/channels/slack.ts`](agent/channels/slack.ts) — Slack turn handling
 - [`agent/agent.ts`](agent/agent.ts) — AI model
 
 See [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for details.

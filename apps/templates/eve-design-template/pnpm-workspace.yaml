@@ -1,7 +1,6 @@
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - "@ai-sdk/*"
-  - "@vercel/*"
   - "@workflow/*"
   - ai
   - eve

@@ -4,7 +4,7 @@ A Slack design agent that answers from your approved design guidelines.
 
 > Experimental: this template uses Eve preview APIs pinned to `0.27.3`.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Feve-design-template%2Ftree%2Fmain&connect=%5B%7B%22type%22%3A%22slack%22%2C%22env%22%3A%22SLACK_CONNECTOR%22%2C%22triggers%22%3Atrue%2C%22triggerPath%22%3A%22%2Feve%2Fv1%2Fslack%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?env=ANTHROPIC_API_KEY%2CSLACK_BOT_TOKEN%2CSLACK_SIGNING_SECRET&envDescription=Your%20Anthropic%20API%20key%2C%20plus%20the%20bot%20token%20and%20signing%20secret%20from%20your%20Slack%20app.&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Feve-design-template%2Fblob%2Fmain%2Fdocs%2Fslack-setup.md&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Feve-design-template%2Ftree%2Fmain)
 
 ## What it does
 
@@ -23,45 +23,39 @@ Each DM or top-level mention starts a conversation. Continue in its reply thread
 
 You need:
 
-- A Vercel account.
-- Permission to authorize a Slack app.
+- A Node.js 24 host that can serve HTTPS. Any VPS, container platform, or Vercel.
+- An Anthropic API key.
+- Permission to create a Slack app in your workspace.
 - A design owner and their Slack member ID.
 - Existing design guidance, or a design owner who can create it with the bootstrap interview.
 - A private repository if the guidance is private.
 
 ## Set up
 
-1. Click **Deploy with Vercel** and authorize Slack.
-2. Clone the generated repository.
-3. Install Node.js 24 and pnpm 10, then run `pnpm install`.
-4. Open the repository in Codex, Claude Code, Conductor, or another coding agent.
-5. Send:
+1. Clone this repository.
+2. Install Node.js 24 and pnpm 10, then run `pnpm install`.
+3. Create your Slack app and collect its credentials — see [`docs/slack-setup.md`](./docs/slack-setup.md).
+4. Copy `.env.example` to `.env.local` and fill in `ANTHROPIC_API_KEY`, `SLACK_BOT_TOKEN`, and `SLACK_SIGNING_SECRET`.
+5. Open the repository in Codex, Claude Code, Conductor, or another coding agent.
+6. Send:
 
    > Follow `BOOTSTRAP.md` and help me set up this design agent. Ask one small batch of questions at a time. Do not approve or publish the corpus for me.
 
-6. Review the approval packet from `BOOTSTRAP.md` and explicitly approve the corpus.
-7. Commit and push to `main`.
+7. Review the approval packet from `BOOTSTRAP.md` and explicitly approve the corpus.
+8. Commit and push to `main`, then deploy with the same three variables set in your host's environment.
 
 Until approval, the agent replies:
 
 > Design-agent setup is incomplete. Run the bootstrap workflow and approve the generated design corpus.
 
-Git-connected projects deploy after the push. Otherwise run:
+## Check the setup
 
 ```bash
-pnpm exec vercel deploy --prod
-```
-
-## Set up from the CLI
-
-```bash
-pnpm install
 pnpm run setup
+pnpm run setup --url https://<production-domain>
 ```
 
-The setup script links the project, creates or reuses a Slack connector, attaches its production trigger, deploys production, and checks the Eve health and Slack routes. It opens Slack authorization in the browser when required.
-
-See [`docs/manual-slack-setup.md`](./docs/manual-slack-setup.md) to use direct Slack credentials.
+Without `--url` the script reports which required environment variables are missing and whether the corpus is approved. With `--url` it also confirms the Eve health route reports ready and that an unsigned Slack request is rejected.
 
 ## Knowledge
 
@@ -79,8 +73,7 @@ Requires Node.js 24 and pnpm 10.
 
 ```bash
 pnpm install
-pnpm exec vercel link
-pnpm exec vercel env pull
+cp .env.example .env.local
 pnpm dev
 ```
 
@@ -100,11 +93,11 @@ pnpm build
 pnpm run info
 ```
 
-Set `DESIGN_AGENT_MODEL` to override the default model, `anthropic/claude-sonnet-4.6`.
+Set `DESIGN_AGENT_MODEL` to override the default model, `claude-sonnet-4.6`. The agent calls Anthropic directly with `ANTHROPIC_API_KEY`; no gateway sits in between.
 
 ## Runtime safety
 
-The agent can read and search only its bundled corpus. Shell, file writes, web access, delegation, todo management, and sandbox network access are disabled. Slack is its only connector.
+The agent can read and search only its bundled corpus. Shell, file writes, web access, delegation, todo management, and sandbox network access are disabled. Slack is its only integration.
 
 ## License
 

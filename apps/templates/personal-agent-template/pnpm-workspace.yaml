@@ -5,7 +5,6 @@ packages:
 
 minimumReleaseAgeExclude:
   - "@ai-sdk/*"
-  - "@vercel/connect"
   - ai
   - eve
 

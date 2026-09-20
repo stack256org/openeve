@@ -23,7 +23,7 @@
     "verify:source-immutability": "node scripts/verify-source-immutability.mjs"
   },
   "dependencies": {
-    "@vercel/connect": "0.4.2",
+    "@ai-sdk/anthropic": "4.0.58",
     "ai": "7.0.37",
     "eve": "0.27.3",
     "jiti": "2.7.0",
@@ -31,8 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "24.13.3",
-    "typescript": "7.0.2",
-    "vercel": "56.3.2"
+    "typescript": "7.0.2"
   },
   "engines": {
     "node": "24.x"

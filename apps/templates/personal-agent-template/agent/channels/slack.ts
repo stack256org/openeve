@@ -1,4 +1,3 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import {
   defaultSlackAuth,
   loadThreadContextMessages,
@@ -173,10 +172,9 @@ async function buildSlackTurn(ctx: SlackContext, message: SlackMessage) {
   };
 }
 
-// Replace with your Vercel Connect Slack slug (e.g. "slack/your-agent").
+// Reads SLACK_BOT_TOKEN for outbound calls and SLACK_SIGNING_SECRET to verify
+// inbound webhooks. Both come from your own Slack app — see docs/ENVIRONMENT.md.
 export default slackChannel({
-  credentials: connectSlackCredentials("slack/v"),
-
   async onAppMention(ctx, message) {
     return buildSlackTurn(ctx, message);
   },

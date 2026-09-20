@@ -13,26 +13,25 @@ Source template:
 ${GITHUB_URL}
 
 Goal:
-Fork or clone the template into a new project, customize the agent if I ask, verify it locally, and deploy the database-free starter to Vercel.
+Fork or clone the template into a new project, customize the agent if I ask, verify it locally, and deploy the database-free starter to the host I choose.
 
 Use the repository README, docs/setup-and-deploy.md, and scripts/setup.sh as the source of truth. Prefer the one-shot setup script when possible:
 
-1. Confirm prerequisites: Node.js 24+, pnpm/Corepack, Vercel CLI, a Vercel account/team, and authentication with vercel login.
+1. Confirm prerequisites: Node.js 24+, pnpm/Corepack, and an Anthropic API key.
 2. Create/fork/clone the eve-chat-template subtree from vercel/eve.
-3. Install dependencies with pnpm install.
-4. Link the Vercel project with vercel link, using --scope <team-slug> if I provide one.
-5. Generate a strong EVE_CHAT_PASSWORD (16+ characters recommended) and add it to local and Vercel environments without printing it.
-6. Start the app locally with pnpm dev and verify the chat page loads, password sign-in works, sending a message creates a chat, and refreshing restores it from browser storage.
-7. Deploy to Vercel. Do not provision Neon, Upstash, a Vercel OAuth app, or run migrations unless I explicitly ask to upgrade to production persistence.
-8. Report the local URL, production URL, any dashboard steps I still need to complete, and any files you changed.
+3. Run ./scripts/setup.sh, which installs dependencies, creates .env.local, and generates a strong EVE_CHAT_PASSWORD and BETTER_AUTH_SECRET. Do not print them.
+4. Set ANTHROPIC_API_KEY in .env.local.
+5. Start the app locally with pnpm dev and verify the chat page loads, password sign-in works, sending a message creates a chat, and refreshing restores it from browser storage.
+6. Deploy to the host I name, setting ANTHROPIC_API_KEY and EVE_CHAT_PASSWORD in its environment. Do not set up Postgres, Redis, a Vercel OAuth app, or run migrations unless I explicitly ask to upgrade to production persistence.
+7. Report the local URL, production URL, any steps I still need to complete, and any files you changed.
 
 Do not print secrets in the final answer. Ask before deleting or overwriting any existing project files.`;
-const DEPLOY_ENV_VARS = ["EVE_CHAT_PASSWORD"] as const;
+const DEPLOY_ENV_VARS = ["ANTHROPIC_API_KEY", "EVE_CHAT_PASSWORD"] as const;
 const DEPLOY_URL = (() => {
   const params = new URLSearchParams([
     [
       "demo-description",
-      "A persisted Next.js chat template for eve, built with shadcn/ui, Tailwind CSS, Streamdown, Better Auth, Drizzle, and Neon.",
+      "A persisted Next.js chat template for eve, built with shadcn/ui, Tailwind CSS, Streamdown, Better Auth, Drizzle, and Postgres.",
     ],
     [
       "demo-image",
@@ -43,7 +42,7 @@ const DEPLOY_URL = (() => {
     ["env", DEPLOY_ENV_VARS.join(",")],
     [
       "envDescription",
-      "Choose a strong password to protect your agent (16+ characters recommended).",
+      "Your Anthropic API key, plus a strong password to protect your agent (16+ characters recommended).",
     ],
     [
       "envLink",

@@ -29,20 +29,20 @@ flowchart TB
     db[(NuxtHub SQLite — Drizzle)]
   end
 
-  connect[Vercel Connect — Linear · Slack]
+  services[External services — Linear · GitHub · Slack]
 
   surfaces --> eve
   eve -->|"HTTP + Bearer INTERNAL_API_SECRET"| nuxt
   api --> db
   internal --> db
   auth --> db
-  nuxt --> connect
+  nuxt --> services
 ```
 
-| Vercel service | Entry                | Role                |
-| -------------- | -------------------- | ------------------- |
-| `web`          | `/`                  | Nuxt UI + Nitro API |
-| `eve`          | `/_eve_internal/eve` | Eve agent runtime   |
+| Service | Entry                | Role                |
+| ------- | -------------------- | ------------------- |
+| `web`   | `/`                  | Nuxt UI + Nitro API |
+| `eve`   | `/_eve_internal/eve` | Eve agent runtime   |
 
 The [`eve/nuxt`](https://eve.dev/docs/guides/frontend/nuxt) module generates this service configuration during the Vercel build; [`vercel.json`](../vercel.json) contains only the schema declaration.
 
@@ -106,9 +106,9 @@ Start a **new chat** after importing memory so injection picks up changes.
 
 ### Integrations (Linear)
 
-1. User connects Linear in **Settings → Integrations**
-2. Vercel Connect provisions MCP credentials
-3. Eve connection ([`agent/connections/linear.ts`](../agent/connections/linear.ts)) exposes Linear tools to the agent
+1. `LINEAR_API_KEY` is set in the environment both services read
+2. **Settings → Integrations** reports the row as connected and can run a live test
+3. Eve connection ([`agent/connections/linear.ts`](../agent/connections/linear.ts)) sends that token to Linear's MCP endpoint and exposes Linear tools to the agent
 
 ## Internal API
 

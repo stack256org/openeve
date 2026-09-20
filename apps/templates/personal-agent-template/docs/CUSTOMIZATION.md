@@ -91,37 +91,29 @@ Skills are markdown files in [`agent/skills/`](../agent/skills/). See [`daily-su
 
 ### GitHub
 
-Uses Vercel Connect OAuth and [@github-tools/sdk/eve](https://github-tools.com/frameworks/eve). Connector UID: [`shared/connect.ts`](../shared/connect.ts) (`GITHUB_CONNECTOR`), registry: [`server/connectors.ts`](../server/connectors.ts), tools: [`agent/tools/github.ts`](../agent/tools/github.ts).
+Uses [@github-tools/sdk/eve](https://github-tools.com/frameworks/eve). Registry: [`server/connectors.ts`](../server/connectors.ts), tools: [`agent/tools/github.ts`](../agent/tools/github.ts).
 
-1. Create a GitHub connector in Vercel Connect:
+1. Create a fine-grained personal access token in GitHub → Settings → Developer settings, with the `repo` scope
+2. Set `GITHUB_TOKEN` on the eve service and the web service, then restart
+3. Open **Settings → Integrations** and run the test
+4. Ask about repos, PRs, or issues in a new chat session
 
-   ```bash
-   vercel connect create github --name personal-agent
-   vercel connect attach github/personal-agent
-   ```
-
-2. Update `GITHUB_CONNECTOR` in [`shared/connect.ts`](../shared/connect.ts) if it differs from `vercel connect list`
-3. Open **Settings → Integrations** and connect
-4. Ask about repos, PRs, or issues in chat
+The token is shared by every signed-in user, so the agent acts as one service account. Grant it only the repositories the agent should reach.
 
 ### Linear
 
-Uses Vercel Connect MCP (`mcp.linear.app/linear`). Connection logic: [`agent/connections/linear.ts`](../agent/connections/linear.ts).
+Connection logic: [`agent/connections/linear.ts`](../agent/connections/linear.ts).
 
-1. Create a Linear MCP connector in Vercel Connect
-2. Open **Settings → Integrations** and connect
-3. Ask about issues in chat
+1. Create an API key in Linear → Settings → Security & access → API keys
+2. Set `LINEAR_API_KEY` on the eve service and the web service, then restart
+3. Open **Settings → Integrations** and run the test
+4. Ask about issues in chat
 
 ### Slack
 
-1. Create a Slack connector in Vercel Connect
-2. Replace the slug in [`agent/channels/slack.ts`](../agent/channels/slack.ts):
-
-```typescript
-credentials: connectSlackCredentials("slack/your-slug"),
-```
-
-3. Connect in **Settings → Integrations**
+1. Create an app at [api.slack.com/apps](https://api.slack.com/apps) with the `app_mentions:read`, `chat:write`, `im:history`, and `users:read.email` bot scopes
+2. Install it to your workspace and point Event Subscriptions at `https://<your-domain>/eve/v1/slack`
+3. Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` on the eve service — see [Environment](./ENVIRONMENT.md#slack-optional)
 4. Link accounts: generate a code in the app, then DM `link <code>` to the bot
 
 Slack linking uses the internal API — `INTERNAL_API_SECRET` must be set.

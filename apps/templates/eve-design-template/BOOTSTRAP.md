@@ -166,7 +166,7 @@ Each empty allowlist leaves that dimension unrestricted. Copy member IDs from Sl
 
 Store identity, ownership, general-guidance policy, and allowlists in `knowledge/manifest.json`. Store an icon under `branding/` and set `agent.iconPath`. Treat confirmed voice and terminology answers as sourced guidelines, not manifest fields.
 
-If Slack Connect already exists, remind the owner to update its visible name, description, and icon in Vercel Connect settings.
+If the Slack app already exists, remind the owner to update its visible name, description, and icon in the Slack app settings.
 
 ## 7. Prepare the approval packet
 
@@ -208,8 +208,5 @@ After explicit corpus approval:
 
 Ask separately before committing, pushing, or deploying. Corpus approval does not authorize publication.
 
-Git-connected Vercel projects deploy after a push to the production branch. Otherwise deploy with:
-
-```bash
-pnpm exec vercel deploy --prod
-```
+Deploy after the push. The corpus is bundled at build time, so a redeploy is
+what publishes it.

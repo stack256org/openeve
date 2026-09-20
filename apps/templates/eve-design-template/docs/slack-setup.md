@@ -1,6 +1,7 @@
-# Manual Slack setup
+# Slack setup
 
-Use this only when Vercel Connect is unavailable.
+The agent reads its Slack credentials from the environment. Nothing else is
+required, and no hosting provider is involved.
 
 ## Slack app
 
@@ -11,17 +12,31 @@ Create a Slack app with:
 - Request URL: `https://<production-domain>/eve/v1/slack`.
 - Interactivity & Shortcuts request URL: the same `/eve/v1/slack` URL.
 
-Install the app to the workspace and set these production environment variables:
+Install the app to the workspace, then set these environment variables
+wherever the agent runs:
 
 ```text
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_SIGNING_SECRET=...
 ```
 
-Do not set `SLACK_CONNECTOR`. Deploy production:
+`SLACK_BOT_TOKEN` is the **Bot User OAuth Token** under OAuth & Permissions.
+`SLACK_SIGNING_SECRET` is the **Signing Secret** under Basic Information; the
+channel uses it to verify that inbound webhooks really came from Slack.
+
+Locally, put both in `.env.local` (copy `.env.example`). In production, set
+them in your host's encrypted environment variables.
+
+## Verify
+
+After deploying, point the setup check at the running agent:
 
 ```bash
-VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod
+pnpm run setup --url https://<production-domain>
 ```
 
-The bot responds to DMs and channel messages that explicitly mention it. It does not continue ambient thread conversation.
+It confirms `/eve/v1/health` reports ready and that an unsigned POST to
+`/eve/v1/slack` is rejected with `401 unauthorized`.
+
+The bot responds to DMs and channel messages that explicitly mention it. It
+does not continue ambient thread conversation.

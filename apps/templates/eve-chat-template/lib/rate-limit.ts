@@ -1,4 +1,6 @@
-import { Redis } from "@upstash/redis";
+import { createClient } from "redis";
+
+type RedisClient = ReturnType<typeof createClient>;
 
 type LimitOptions = {
   readonly key: string;
@@ -16,39 +18,40 @@ export class RateLimitError extends Error {
   }
 }
 
-let redis: Redis | null | undefined;
+let connection: Promise<RedisClient> | null = null;
 
-function getRedisEnv() {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim() || process.env.KV_REST_API_URL?.trim();
-  const token =
-    process.env.UPSTASH_REDIS_REST_TOKEN?.trim() || process.env.KV_REST_API_TOKEN?.trim();
-
-  return url && token ? { token, url } : null;
+function getRedisUrl() {
+  return process.env.REDIS_URL?.trim() || null;
 }
 
-function getRedis() {
-  if (redis !== undefined) {
-    return redis;
+function getRedis(url: string) {
+  if (!connection) {
+    const client = createClient({ url });
+
+    // A dropped connection must not become an unhandled rejection; the next
+    // call reconnects through a fresh promise.
+    client.on("error", () => {});
+
+    connection = client
+      .connect()
+      .then(() => client)
+      .catch((error: unknown) => {
+        connection = null;
+        throw error;
+      });
   }
 
-  const env = getRedisEnv();
-
-  if (!env) {
-    redis = null;
-    return redis;
-  }
-
-  redis = new Redis(env);
-  return redis;
+  return connection;
 }
 
 export async function enforceRateLimit(options: LimitOptions) {
-  const client = getRedis();
+  const url = getRedisUrl();
 
-  if (!client) {
+  if (!url) {
     return;
   }
 
+  const client = await getRedis(url);
   const now = Math.floor(Date.now() / 1000);
   const windowId = Math.floor(now / options.windowSeconds);
   const redisKey = `rate:${options.prefix}:${options.key}:${windowId}`;

@@ -1,4 +1,4 @@
-import { CONNECT_USER_ISSUER } from "#shared/connect";
+import { APP_USER_ISSUER } from "#shared/app-session";
 
 export function buildAppSessionAuth(
   appUserId: string,
@@ -10,8 +10,8 @@ export function buildAppSessionAuth(
 
   return {
     attributes: cleaned,
-    authenticator: CONNECT_USER_ISSUER,
-    issuer: CONNECT_USER_ISSUER,
+    authenticator: APP_USER_ISSUER,
+    issuer: APP_USER_ISSUER,
     principalId: appUserId,
     principalType: "user",
   };

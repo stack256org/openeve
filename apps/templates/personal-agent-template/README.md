@@ -8,7 +8,7 @@
 
 **Template.** Fork it, customize it, and deploy your own personal agent.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Ftree%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Fblob%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Ftree%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template&env=ANTHROPIC_API_KEY%2CBETTER_AUTH_SECRET%2CBETTER_AUTH_URL%2CINTERNAL_API_SECRET&envDescription=ANTHROPIC_API_KEY%3A%20your%20Anthropic%20API%20key%20%7C%20BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Fblob%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
 
 Open source personal agent template. Web chat, Slack, iMessage, GitHub, Linear, and long-term memory — one codebase, durable sessions, user-approved memory saves.
 
@@ -28,11 +28,11 @@ Reach V over iMessage via [Sendblue](https://chat-sdk.dev/adapters/vendor-offici
 
 ### GitHub — Repos, PRs, and CI
 
-Connect GitHub via Vercel Connect. Ask about repositories, pull requests, issues, and workflows — the agent uses [@github-tools/sdk](https://github-tools.com/frameworks/eve) tools with durable approval on writes.
+Set `GITHUB_TOKEN` and ask about repositories, pull requests, issues, and workflows — the agent uses [@github-tools/sdk](https://github-tools.com/frameworks/eve) tools with durable approval on writes.
 
 ### Linear — Issues On Demand
 
-Connect Linear via Vercel Connect MCP. Ask about issues, projects, and cycles — the agent queries Linear tools, never guesses from memory.
+Set `LINEAR_API_KEY` and ask about issues, projects, and cycles — the agent queries Linear's MCP tools, never guesses from memory.
 
 ### Long-Term Memory — Import and Grow
 
@@ -58,16 +58,16 @@ Morning briefing skill: active focus from memory, assigned Linear issues, and a 
 │         Nuxt (UI + Nitro API + Better Auth + SQLite)           │
 └───────────────────────────────┬─────────────────────────────────┘
                                 ▼
-                      Vercel Connect (Linear, Slack)
+               External services (Linear, GitHub, Slack)
 ```
 
-On Vercel, the [`eve/nuxt`](https://eve.dev/docs/guides/frontend/nuxt) module generates `web` (Nuxt) and `eve` (agent runtime) services during the build.
+The [`eve/nuxt`](https://eve.dev/docs/guides/frontend/nuxt) module generates `web` (Nuxt) and `eve` (agent runtime) services during the build.
 
 ## Quick Start
 
 ### Deploy to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Ftree%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Fblob%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Ftree%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template&env=ANTHROPIC_API_KEY%2CBETTER_AUTH_SECRET%2CBETTER_AUTH_URL%2CINTERNAL_API_SECRET&envDescription=ANTHROPIC_API_KEY%3A%20your%20Anthropic%20API%20key%20%7C%20BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Feve%2Fblob%2Fmain%2Fapps%2Ftemplates%2Fpersonal-agent-template%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
 
 ### Self-hosting
 
@@ -88,6 +88,7 @@ Open [http://localhost:3000](http://localhost:3000), create an account, and star
 **Required environment variables:**
 
 ```bash
+ANTHROPIC_API_KEY=...        # from the Anthropic console
 BETTER_AUTH_SECRET=...       # openssl rand -base64 32
 BETTER_AUTH_URL=http://localhost:3000
 INTERNAL_API_SECRET=...      # openssl rand -base64 32 — same on web + eve
@@ -153,7 +154,7 @@ See [AGENTS.md](./AGENTS.md) for notes aimed at AI coding assistants.
 - [NuxtHub](https://hub.nuxt.com) — SQLite database
 - [Better Auth](https://www.better-auth.com) — Authentication
 - [Drizzle ORM](https://orm.drizzle.team) — Type-safe database queries
-- [Vercel Connect](https://vercel.com/docs/connect) — Linear and Slack integrations
+- [Model Context Protocol](https://modelcontextprotocol.io) — Linear integration
 
 ## Contributing
 
