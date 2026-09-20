@@ -6,16 +6,20 @@
  * import specifier, and `src/self-modification/**` imports `eve/...` through
  * Node's package self-reference, which only resolves while the manifest says
  * `eve`. Renaming it breaks `tsc -p tsconfig.build.json`. So the build runs
- * under the repository name, the manifest is swapped only for the upload, and
- * the swap is always undone.
+ * under the repository name, the manifest is swapped only long enough to pack,
+ * and the swap is always undone.
  *
  * Consumers install the result under the `eve` alias
  * (`"eve": "npm:@stack256org/openeve@^x.y.z"`), which `eve init` writes for
- * them. pnpm does the publishing because `npm publish` leaves pnpm's
- * `catalog:` protocol in `peerDependencies`, which no consumer can install.
+ * them.
+ *
+ * pnpm packs and npm uploads, because each does one half of the job:
+ * `npm pack` leaves pnpm's `catalog:` protocol in `peerDependencies`, which no
+ * consumer can install, and `pnpm publish` cannot authenticate with OIDC
+ * trusted publishing (pnpm/pnpm#9812).
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,6 +38,8 @@ function run(command, args, cwd) {
 
 const originalManifest = readFileSync(manifestPath, "utf8");
 const { name, version } = JSON.parse(originalManifest);
+const tarballName = `${PUBLISHED_PACKAGE_NAME.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
+const tarballPath = join(packageDirectory, tarballName);
 
 console.log(`Building ${name}@${version} before renaming it to ${PUBLISHED_PACKAGE_NAME}.`);
 run("pnpm", ["--filter", "eve", "run", "build"], repositoryRoot);
@@ -45,20 +51,19 @@ writeFileSync(
 );
 
 try {
+  run("pnpm", ["pack", "--ignore-scripts"], packageDirectory);
+} finally {
+  writeFileSync(manifestPath, originalManifest);
+  console.log(`Restored the manifest name to ${name}.`);
+}
+
+try {
   run(
-    "pnpm",
-    [
-      "publish",
-      "--access",
-      "public",
-      "--no-git-checks",
-      "--ignore-scripts",
-      ...process.argv.slice(2),
-    ],
+    "npm",
+    ["publish", tarballName, "--access", "public", ...process.argv.slice(2)],
     packageDirectory,
   );
   console.log(`Published ${PUBLISHED_PACKAGE_NAME}@${version}.`);
 } finally {
-  writeFileSync(manifestPath, originalManifest);
-  console.log(`Restored the manifest name to ${name}.`);
+  rmSync(tarballPath, { force: true });
 }

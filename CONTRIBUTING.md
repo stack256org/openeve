@@ -223,20 +223,26 @@ request bumps the version in `packages/eve/package.json`, and the run it
 triggers publishes `@stack256org/openeve` to npm and creates the matching
 GitHub release. A merge that does not change the version publishes nothing.
 
-The workflow needs one repository secret, `NPM_TOKEN` — an npm Granular Access
-token with write access to the `stack256org` scope. Automation tokens bypass
-two-factor authentication, which interactive publishing requires.
+No npm token is stored anywhere. The package is configured for npm
+[trusted publishing](https://docs.npmjs.com/trusted-publishers/), which grants
+this one workflow a short-lived credential from its GitHub OIDC identity.
 
-Publishing by hand takes the same path:
+Publishing by hand takes the same path, and needs `npm login`:
 
 ```bash
 pnpm publish:openeve
 ```
 
-That script builds under the repository name `eve`, renames the manifest to
-`@stack256org/openeve` for the upload only, and restores it afterwards. The
-rename cannot happen before the build: the package self-references `eve/...`
-in `src/self-modification/`, which only resolves while the manifest says `eve`.
+Two details in that script are load-bearing:
+
+- It builds under the repository name `eve` and renames the manifest to
+  `@stack256org/openeve` only long enough to pack. The rename cannot happen
+  before the build: the package self-references `eve/...` in
+  `src/self-modification/`, which only resolves while the manifest says `eve`.
+- pnpm packs and npm uploads. `npm pack` leaves pnpm's `catalog:` protocol in
+  `peerDependencies`, which fails every install with `EUNSUPPORTEDPROTOCOL`,
+  and `pnpm publish` cannot authenticate with OIDC
+  ([pnpm#9812](https://github.com/pnpm/pnpm/issues/9812)).
 
 ## Developer Certificate of Origin (DCO)
 

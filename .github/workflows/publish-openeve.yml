@@ -25,6 +25,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # npm trusted publishing: npm exchanges this for a short-lived
+      # credential, so no long-lived token is stored anywhere.
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -66,8 +69,6 @@ jobs:
       - name: Publish to npm
         if: steps.version.outputs.publish == 'true'
         run: node ./scripts/publish-openeve.mjs
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag the release
         if: steps.version.outputs.publish == 'true'
@@ -89,7 +90,7 @@ jobs:
         uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
           version-script: pnpm version-packages
-          title: "chore: version open-eve"
-          commit: "chore: version open-eve"
+          pr-title: "chore: version open-eve"
+          commit-message: "chore: version open-eve"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
