@@ -1,6 +1,5 @@
 import type { AuthFn } from "eve/channels/auth";
 import { eveChannel } from "eve/channels/eve";
-import { vercelOidc } from "eve/channels/auth";
 import { auth } from "../../auth";
 
 function appSession(): AuthFn<Request> {
@@ -27,5 +26,5 @@ function appSession(): AuthFn<Request> {
 }
 
 export default eveChannel({
-  auth: [appSession(), vercelOidc()],
+  auth: [appSession()],
 });
