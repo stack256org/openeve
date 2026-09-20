@@ -982,17 +982,39 @@ The partial implementation was reverted rather than committed.
 
 ## Milestone 4 — Gate Vercel, rebrand, registry
 
-### Task 10: Gate the Vercel path
+### Task 10: Gate the Vercel path — MOSTLY ALREADY TRUE
 
-Move `@vercel/*` from `dependencies`/`devDependencies` to `optionalDependencies` where required, and make `openeve link` / `openeve deploy` appear only when the Vercel host is selected. All 55 Vercel-named files stay in place, gated — never deleted.
+Measured rather than assumed: `packages/eve/package.json` declares exactly two
+runtime `dependencies`, `nitro` and `undici`, and all six `@vercel/*` packages
+are `devDependencies`. Their code is vendored into `dist` at build time, so
+installing the package pulls no Vercel package and there is nothing to move to
+`optionalDependencies`. The install-size half of this task was already
+satisfied before open-eve started.
+
+What remains is cosmetic: `openeve link` and `openeve deploy` are listed even
+for a self-hosted agent. Hiding them was the plan; failing fast with a clear
+message is better, because a hidden command teaches nobody why it is missing,
+and AGENTS.md makes error quality a product principle. Deferred either way —
+both commands still work for users who do want Vercel, and the zero-Vercel
+promise is enforced at runtime by `check:no-vercel-runtime`, not by which
+commands appear in `--help`.
 
 ### Task 11: Rebrand
 
 `packages/eve/package.json` only: `"name": "open-eve"`, `"bin": { "openeve": "./bin/eve.js", "eve": "./bin/eve.js" }`. **No file or directory is renamed.**
 
-### Task 12: Registry
+### Task 12: Registry — BLOCKED ON HOSTING
 
-Publish the open-eve registry as static shadcn JSON generated from the fork, and change `DEFAULT_OFFICIAL_REGISTRY_URL` at `packages/eve/src/cli/commands/registry.ts:111`. Users can still point elsewhere with `openeve registry add`.
+`DEFAULT_OFFICIAL_REGISTRY_URL` at `packages/eve/src/cli/commands/registry.ts:111`
+is `https://eve.dev/r`. Repointing it needs an open-eve registry to exist at
+some URL first, and nothing is hosted yet. Changing the constant before then
+would replace a working default with a dead one, which is strictly worse than
+leaving it.
+
+Nothing is blocked for users in the meantime: the URL is already overridable
+through `EVE_DEV_OFFICIAL_REGISTRY_URL`, and `openeve registry add` points at
+any registry. Generating the static shadcn JSON from the fork can happen
+whenever; publishing it is the part that needs a decision about where.
 
 ---
 
