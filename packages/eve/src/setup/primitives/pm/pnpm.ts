@@ -146,17 +146,93 @@ export function findClaimingAncestorPnpmWorkspaceRoot(projectRoot: string): stri
     : undefined;
 }
 
+const PACKAGES_KEY = /^packages:[ \t]*(.*)$/u;
+
+function unquoteYamlScalar(value: string): string {
+  const quote = value.at(0);
+  return (quote === '"' || quote === "'") && value.endsWith(quote) && value.length > 1
+    ? value.slice(1, -1)
+    : value;
+}
+
+/**
+ * Splits the body of a YAML flow sequence on its top-level commas. Returns
+ * `undefined` for anything this cannot rewrite faithfully — a nested
+ * collection, or an unterminated quote — so the caller can leave the manifest
+ * untouched rather than guess at it.
+ */
+function splitYamlFlowSequence(body: string): string[] | undefined {
+  const entries: string[] = [];
+  let current = "";
+  let quote: string | undefined;
+
+  for (const character of body) {
+    if (quote !== undefined) {
+      current += character;
+      if (character === quote) quote = undefined;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      current += character;
+      continue;
+    }
+    if ("[]{}".includes(character)) return undefined;
+    if (character === ",") {
+      entries.push(current);
+      current = "";
+      continue;
+    }
+    current += character;
+  }
+
+  if (quote !== undefined) return undefined;
+  entries.push(current);
+  return entries.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+}
+
 function withPnpmWorkspacePackagePattern(source: string, pattern: string): string {
   const normalized = source.endsWith("\n") ? source : `${source}\n`;
   const lines = normalized.split("\n");
-  const packagesIndex = lines.findIndex((line) => line.trim() === "packages:");
+  const packagesIndex = lines.findIndex((line) => PACKAGES_KEY.test(line));
 
   if (packagesIndex < 0) {
     const prefix = normalized.trim().length === 0 ? "" : `${normalized}\n`;
     return `${prefix}packages:\n  - ${pattern}\n`;
   }
 
+  const inlineValue = (PACKAGES_KEY.exec(lines[packagesIndex] ?? "")?.[1] ?? "").trim();
+
+  // `packages: []` and `packages: ["apps/*"]` carry the list on the key line.
+  // Appending a second `packages:` key would make the manifest invalid, so
+  // rewrite the flow sequence as a block instead — and when the value is
+  // something this cannot rewrite, leave the file exactly as it is.
+  if (inlineValue.length > 0) {
+    if (!inlineValue.startsWith("[") || !inlineValue.endsWith("]")) return normalized;
+    const existing = splitYamlFlowSequence(inlineValue.slice(1, -1));
+    if (existing === undefined) return normalized;
+    if (existing.some((entry) => unquoteYamlScalar(entry) === pattern)) return normalized;
+    lines.splice(
+      packagesIndex,
+      1,
+      "packages:",
+      ...existing.map((entry) => `  - ${entry}`),
+      `  - ${pattern}`,
+    );
+    return lines.join("\n");
+  }
+
   const blockEnd = findYamlBlockEnd(lines, packagesIndex);
+  const existingBlock = lines.slice(packagesIndex + 1, blockEnd);
+  if (
+    existingBlock.some((line) => {
+      const entry = /^\s+-\s*(.*)$/u.exec(line)?.[1];
+      return entry !== undefined && unquoteYamlScalar(entry.trim()) === pattern;
+    })
+  ) {
+    return normalized;
+  }
+
   let insertAt = blockEnd;
   while (insertAt > packagesIndex + 1 && lines[insertAt - 1] === "") {
     insertAt -= 1;
