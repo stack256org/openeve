@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createInstallDiagnostics } from "./init-install.js";
+import { createInstallDiagnostics, installFailureRemedy } from "./init-install.js";
 
 describe("install diagnostics", () => {
   it("prefers actionable output even when npm keeps emitting noise", () => {
@@ -42,5 +42,30 @@ describe("install diagnostics", () => {
     diagnostics.append("  ");
     diagnostics.append("\u001B[3J\u001B[Hnpm error failed");
     expect(diagnostics.result()).toEqual({ lines: ["npm error failed"], truncated: false });
+  });
+});
+
+describe("installFailureRemedy", () => {
+  it("names the npm configuration that rejects a project-scoped install", () => {
+    const remedy = installFailureRemedy([
+      "npm error code EALLOWSCRIPTS",
+      "npm error --allow-scripts is not allowed in project-scoped installs.",
+    ]);
+
+    expect(remedy).toContain("npm config delete allow-scripts");
+  });
+
+  it("matches the message even when the error code is absent", () => {
+    expect(
+      installFailureRemedy([
+        "npm error --allow-scripts is not allowed in project-scoped installs.",
+      ]),
+    ).toContain("npm config delete allow-scripts");
+  });
+
+  it("stays silent for a failure it does not recognize", () => {
+    expect(
+      installFailureRemedy(["npm error code E404", "npm error 404 Not Found"]),
+    ).toBeUndefined();
   });
 });

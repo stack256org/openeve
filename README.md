@@ -19,6 +19,7 @@ Vercel is not removed. It is opt-in, one field in `agent/agent.ts`.
 | Model             | AI Gateway model slug | Any AI SDK provider, including a local endpoint  |
 | Build output      | `.vercel/output`      | A Nitro Node server under `.output/`             |
 | Channel auth      | Vercel Connect        | Credentials you set in the environment           |
+| CLI telemetry     | On, with a notice     | Off; `eve telemetry enable` opts in              |
 
 Two pages cover most of the practical difference:
 

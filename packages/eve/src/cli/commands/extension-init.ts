@@ -22,6 +22,7 @@ import {
   packageManagerInstallSucceeded,
   runPackageManagerInstall,
 } from "#setup/primitives/index.js";
+import { installFailureRemedy } from "./init-install.js";
 import type { ProcessOutputLine } from "#setup/primitives/process-output.js";
 import { blockingCreateInPlaceEntries } from "#setup/scaffold/create-in-place.js";
 import {
@@ -323,6 +324,8 @@ export async function runExtensionInitCommand(
         const message = packageManagerInstallFailureMessage(installResult);
         if (message !== undefined) logger.error(message);
       }
+      const remedy = installFailureRemedy(failureOutput);
+      if (remedy !== undefined) logger.error(`\n${remedy}`);
       throw new Error(`Failed to install dependencies in "${projectPath}".`);
     }
     initLog.debug("dependencies installed", { ms: installElapsedMs });

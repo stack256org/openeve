@@ -44,7 +44,11 @@ import {
 } from "#setup/scaffold/create/project.js";
 
 import { initAgentDevHandoff } from "./agent-instructions.js";
-import { createInstallDiagnostics, packageManagerInstallFailureCode } from "./init-install.js";
+import {
+  createInstallDiagnostics,
+  installFailureRemedy,
+  packageManagerInstallFailureCode,
+} from "./init-install.js";
 import {
   addAgentsToWorkspace,
   convertScaffoldToAgentWorkspace,
@@ -423,6 +427,8 @@ async function runInitSteps(input: {
         const message = packageManagerInstallFailureMessage(installResult);
         if (message !== undefined) logger.error(message);
       }
+      const remedy = installFailureRemedy(failureOutput);
+      if (remedy !== undefined) logger.error(`\n${remedy}`);
 
       if (project.failurePolicy !== "preserve") {
         const cleaned = await cleanupFreshInitTarget(

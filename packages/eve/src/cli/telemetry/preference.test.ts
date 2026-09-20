@@ -28,8 +28,17 @@ afterEach(() => {
 });
 
 describe("eve telemetry preference", () => {
-  it("defaults to enabled before a preference exists", async () => {
+  it("defaults to disabled before a preference exists", async () => {
     vi.mocked(readFile).mockRejectedValue(new Error("missing"));
+
+    await expect(readEveTelemetryPreference()).resolves.toEqual({
+      enabled: false,
+      notified: false,
+    });
+  });
+
+  it("reads a persisted opt-in", async () => {
+    vi.mocked(readFile).mockResolvedValue('{"telemetry":{"enabled":true}}');
 
     await expect(readEveTelemetryPreference()).resolves.toEqual({ enabled: true, notified: false });
   });
@@ -43,7 +52,7 @@ describe("eve telemetry preference", () => {
   });
 
   it("shows the versioned notice when only an older notice timestamp exists", async () => {
-    vi.mocked(readFile).mockResolvedValue('{"telemetry":{"notifiedAt":"now"}}');
+    vi.mocked(readFile).mockResolvedValue('{"telemetry":{"enabled":true,"notifiedAt":"now"}}');
 
     await expect(readEveTelemetryPreference()).resolves.toEqual({ enabled: true, notified: false });
   });

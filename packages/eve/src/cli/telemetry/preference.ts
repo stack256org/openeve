@@ -11,6 +11,17 @@ import { z } from "zod";
 
 const EVE_TELEMETRY_NOTICE_VERSION = 1;
 
+/**
+ * open-eve ships telemetry off.
+ *
+ * Upstream eve defaults it on and prints a one-time notice explaining how to
+ * turn it off. A fork whose promise is that nothing leaves the machine cannot
+ * make that trade, so the default is inverted and `eve telemetry enable` is the
+ * only way to switch it on. Inverting the default also silences the notice,
+ * which only prints while telemetry is enabled.
+ */
+const TELEMETRY_ENABLED_BY_DEFAULT = false;
+
 export type EveTelemetryPreference = {
   readonly enabled: boolean;
   readonly notified: boolean;
@@ -42,7 +53,7 @@ function eveConfigPath(): string {
 const EveConfigSchema = z.looseObject({
   telemetry: z
     .looseObject({
-      enabled: z.boolean().default(true),
+      enabled: z.boolean().default(TELEMETRY_ENABLED_BY_DEFAULT),
       installationId: z.string().optional(),
       noticeVersion: z.number().int().positive().optional(),
       notifiedAt: z.string().optional(),
@@ -54,7 +65,7 @@ const EveConfigSchema = z.looseObject({
 function parsePreference(value: unknown): EveTelemetryPreference {
   const telemetry = EveConfigSchema.safeParse(value).data?.telemetry;
   return {
-    enabled: telemetry?.enabled ?? true,
+    enabled: telemetry?.enabled ?? TELEMETRY_ENABLED_BY_DEFAULT,
     notified: telemetry?.noticeVersion === EVE_TELEMETRY_NOTICE_VERSION,
   };
 }
@@ -63,7 +74,7 @@ export async function readEveTelemetryPreference(): Promise<EveTelemetryPreferen
   try {
     return parsePreference(JSON.parse(await readFile(eveConfigPath(), "utf8")) as unknown);
   } catch {
-    return { enabled: true, notified: false };
+    return { enabled: TELEMETRY_ENABLED_BY_DEFAULT, notified: false };
   }
 }
 

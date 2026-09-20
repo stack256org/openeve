@@ -47,6 +47,34 @@ export function createInstallDiagnostics() {
   };
 }
 
+/**
+ * Package-manager failures that report a cause but no cure, keyed to the remedy.
+ *
+ * A failure the user can fix in one command is worth naming, because the
+ * package manager's own wording sends people the wrong way. npm's
+ * `EALLOWSCRIPTS` text says to move the entries "to the \"allowScripts\" field
+ * in package.json, or to .npmrc, instead" — but the setting is already in an
+ * .npmrc, and the one that breaks the install is the user-level one, which npm
+ * honors for global installs only.
+ */
+const INSTALL_FAILURE_REMEDIES: readonly { pattern: RegExp; remedy: string }[] = [
+  {
+    pattern: /\bEALLOWSCRIPTS\b|--allow-scripts is not allowed/u,
+    remedy:
+      "npm refused this install because `allow-scripts` is set in an npm configuration that " +
+      "applies here. npm accepts that setting for global installs only.\n\n" +
+      "Remove it, then retry:\n" +
+      "  npm config delete allow-scripts\n\n" +
+      'Approve a specific package per project in that project\'s package.json "allowScripts" field.',
+  },
+];
+
+/** Returns actionable guidance for a recognized package-manager failure. */
+export function installFailureRemedy(output: readonly string[]): string | undefined {
+  const text = output.join("\n");
+  return INSTALL_FAILURE_REMEDIES.find(({ pattern }) => pattern.test(text))?.remedy;
+}
+
 export function packageManagerInstallFailureCode(
   result: PackageManagerInstallResult,
 ): EveCliSetupFailureCode {
