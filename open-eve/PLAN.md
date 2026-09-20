@@ -761,7 +761,7 @@ finishing this check needs a model credential and a configured principal.
 
 ## Milestone 2 — Channel state
 
-### Task 7: `sqliteState()` Chat SDK state adapter
+### Task 7: `sqliteState()` Chat SDK state adapter — DONE (`9114ed18e`)
 
 **Files:**
 
@@ -868,7 +868,7 @@ The journal-mode switch takes an exclusive lock, so a second process opening
 
 The second is Task 7b, below.
 
-### Task 7b: Vendor chat's second declaration chunk
+### Task 7b: Vendor chat's second declaration chunk — DONE (`178821fea`)
 
 **Files:** `packages/eve/scripts/vendor-compiled/chat.mjs`
 
@@ -905,7 +905,7 @@ errors it did not cause.
 
 ## Milestone 3 — Scaffolds
 
-### Task 8: Portable credentials for every integration
+### Task 8: Portable credentials for every integration — DONE (`9c2567a04`)
 
 **Files:**
 
